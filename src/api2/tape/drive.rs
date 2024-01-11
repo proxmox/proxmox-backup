@@ -539,6 +539,14 @@ fn write_media_label(
     label: MediaLabel,
     pool: Option<String>,
 ) -> Result<(), Error> {
+    let mut inventory = Inventory::new(TAPE_STATUS_DIR);
+    inventory.reload()?;
+    if inventory
+        .find_media_by_label_text(&label.label_text)?
+        .is_some()
+    {
+        bail!("Media with label '{}' already exists", label.label_text);
+    }
     drive.label_tape(&label)?;
     if let Some(ref pool) = pool {
         task_log!(
@@ -562,8 +570,6 @@ fn write_media_label(
 
     // Create the media catalog
     MediaCatalog::overwrite(TAPE_STATUS_DIR, &media_id, false)?;
-
-    let mut inventory = Inventory::new(TAPE_STATUS_DIR);
     inventory.store(media_id.clone(), false)?;
 
     drive.rewind()?;
