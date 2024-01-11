@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{bail, format_err, Error};
 
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
@@ -290,6 +290,11 @@ pub async fn list_media(
         properties: {
             "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
+                optional: true,
+            },
+            uuid: {
+                schema: MEDIA_UUID_SCHEMA,
+                optional: true,
             },
             "vault-name": {
                 schema: VAULT_NAME_SCHEMA,
@@ -299,15 +304,33 @@ pub async fn list_media(
     },
 )]
 /// Change Tape location to vault (if given), or offline.
-pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), Error> {
+pub fn move_tape(
+    label_text: Option<String>,
+    uuid: Option<Uuid>,
+    vault_name: Option<String>,
+) -> Result<(), Error> {
     let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
-    let uuid = inventory
-        .find_media_by_label_text(&label_text)?
-        .ok_or_else(|| format_err!("no such media '{}'", label_text))?
-        .label
-        .uuid
-        .clone();
+    let uuid = match (uuid, label_text) {
+        (Some(_), Some(_)) => {
+            param_bail!(
+                "format-text",
+                format_err!("A uuid is given, no label-text is expected.")
+            );
+        }
+        (None, None) => {
+            param_bail!(
+                "uuid",
+                format_err!("No label-text is given, a uuid is required.")
+            );
+        }
+        (Some(uuid), None) => uuid,
+        (None, Some(label_text)) => match inventory.find_media_by_label_text(&label_text) {
+            Ok(Some(media_id)) => media_id.label.uuid.clone(),
+            Ok(None) => bail!("no such media '{}'", label_text),
+            Err(err) => bail!("error getting media from unique label: {err}"),
+        },
+    };
 
     if let Some(vault_name) = vault_name {
         inventory.set_media_location_vault(&uuid, &vault_name)?;
@@ -323,6 +346,11 @@ pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), E
         properties: {
             "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
+                optional: true,
+            },
+            uuid: {
+                schema: MEDIA_UUID_SCHEMA,
+                optional: true,
             },
             force: {
                 description: "Force removal (even if media is used in a media set).",
@@ -333,22 +361,46 @@ pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), E
     },
 )]
 /// Destroy media (completely remove from database)
-pub fn destroy_media(label_text: String, force: Option<bool>) -> Result<(), Error> {
+pub fn destroy_media(
+    label_text: Option<String>,
+    uuid: Option<Uuid>,
+    force: Option<bool>,
+) -> Result<(), Error> {
     let force = force.unwrap_or(false);
 
     let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
-    let media_id = inventory
-        .find_media_by_label_text(&label_text)?
-        .ok_or_else(|| format_err!("no such media '{}'", label_text))?;
+    let (media_id, text) = match (uuid, label_text) {
+        (Some(_), Some(_)) => {
+            param_bail!(
+                "format-text",
+                format_err!("A uuid is given, no label-text is expected.")
+            );
+        }
+        (None, None) => {
+            param_bail!(
+                "uuid",
+                format_err!("No label-text is given, a uuid is required.")
+            );
+        }
+        (Some(uuid), None) => (
+            inventory
+                .lookup_media(&uuid)
+                .ok_or_else(|| format_err!("no such media '{}'", uuid))?,
+            uuid.to_string(),
+        ),
+        (None, Some(label_text)) => (
+            inventory
+                .find_media_by_label_text(&label_text)?
+                .ok_or_else(|| format_err!("no such media '{}'", label_text))?,
+            label_text,
+        ),
+    };
 
     if !force {
         if let Some(ref set) = media_id.media_set_label {
             if !set.unassigned() {
-                bail!(
-                    "media '{}' contains data (please use 'force' flag to remove.",
-                    label_text
-                );
+                bail!("media '{text}' contains data (please use 'force' flag to remove.");
             }
         }
     }
