@@ -87,6 +87,16 @@ impl OnlineStatusMap {
     }
 }
 
+fn insert_into_online_set(inventory: &Inventory, label_text: &str, online_set: &mut HashSet<Uuid>) {
+    match inventory.find_media_by_label_text(&label_text) {
+        Ok(Some(media_id)) => {
+            online_set.insert(media_id.label.uuid.clone());
+        }
+        Ok(None) => {}
+        Err(err) => log::warn!("error getting media by unique label: {err}"),
+    }
+}
+
 /// Extract the list of online media from MtxStatus
 ///
 /// Returns a HashSet containing all found media Uuid. This only
@@ -96,9 +106,7 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 
     for drive_status in status.drives.iter() {
         if let ElementStatus::VolumeTag(ref label_text) = drive_status.status {
-            if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
-                online_set.insert(media_id.label.uuid.clone());
-            }
+            insert_into_online_set(inventory, label_text, &mut online_set);
         }
     }
 
@@ -107,9 +115,7 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
             continue;
         }
         if let ElementStatus::VolumeTag(ref label_text) = slot_info.status {
-            if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
-                online_set.insert(media_id.label.uuid.clone());
-            }
+            insert_into_online_set(inventory, label_text, &mut online_set);
         }
     }
 
@@ -174,9 +180,7 @@ pub fn update_online_status<P: AsRef<Path>>(
 
         let mut online_set = HashSet::new();
         for label_text in media_list {
-            if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
-                online_set.insert(media_id.label.uuid.clone());
-            }
+            insert_into_online_set(&inventory, &label_text, &mut online_set);
         }
         map.update_online_status(&vtape.name, online_set)?;
     }
@@ -205,9 +209,7 @@ pub fn update_changer_online_status(
     let mut online_map = OnlineStatusMap::new(drive_config)?;
     let mut online_set = HashSet::new();
     for label_text in label_text_list.iter() {
-        if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
-            online_set.insert(media_id.label.uuid.clone());
-        }
+        insert_into_online_set(inventory, label_text, &mut online_set)
     }
     online_map.update_online_status(changer_name, online_set)?;
     inventory.update_online_status(&online_map)?;

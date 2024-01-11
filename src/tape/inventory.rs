@@ -244,14 +244,24 @@ impl Inventory {
     }
 
     /// find media by label_text
-    pub fn find_media_by_label_text(&self, label_text: &str) -> Option<&MediaId> {
-        self.map.values().find_map(|entry| {
-            if entry.id.label.label_text == label_text {
-                Some(&entry.id)
-            } else {
-                None
-            }
-        })
+    pub fn find_media_by_label_text(&self, label_text: &str) -> Result<Option<&MediaId>, Error> {
+        let ids: Vec<_> = self
+            .map
+            .values()
+            .filter_map(|entry| {
+                if entry.id.label.label_text == label_text {
+                    Some(&entry.id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        match ids.len() {
+            0 => Ok(None),
+            1 => Ok(Some(ids[0])),
+            count => bail!("There are '{count}' tapes with the label '{label_text}'"),
+        }
     }
 
     /// Lookup media pool

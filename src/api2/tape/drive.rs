@@ -828,17 +828,27 @@ pub async fn inventory(drive: String) -> Result<Vec<LabelUuidMap>, Error> {
 
             let label_text = label_text.to_string();
 
-            if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
-                list.push(LabelUuidMap {
-                    label_text,
-                    uuid: Some(media_id.label.uuid.clone()),
-                });
-            } else {
-                list.push(LabelUuidMap {
-                    label_text,
-                    uuid: None,
-                });
-            }
+            match inventory.find_media_by_label_text(&label_text) {
+                Ok(Some(media_id)) => {
+                    list.push(LabelUuidMap {
+                        label_text,
+                        uuid: Some(media_id.label.uuid.clone()),
+                    });
+                }
+                Ok(None) => {
+                    list.push(LabelUuidMap {
+                        label_text,
+                        uuid: None,
+                    });
+                }
+                Err(err) => {
+                    log::warn!("error getting unique media label: {err}");
+                    list.push(LabelUuidMap {
+                        label_text,
+                        uuid: None,
+                    });
+                }
+            };
         }
 
         Ok(list)
@@ -916,11 +926,21 @@ pub fn update_inventory(
                 let label_text = label_text.to_string();
 
                 if !read_all_labels {
-                    if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
-                        if !catalog || MediaCatalog::exists(TAPE_STATUS_DIR, &media_id.label.uuid) {
-                            task_log!(worker, "media '{}' already inventoried", label_text);
+                    match inventory.find_media_by_label_text(&label_text) {
+                        Ok(Some(media_id)) => {
+                            if !catalog
+                                || MediaCatalog::exists(TAPE_STATUS_DIR, &media_id.label.uuid)
+                            {
+                                task_log!(worker, "media '{}' already inventoried", label_text);
+                                continue;
+                            }
+                        }
+                        Err(err) => {
+                            task_warn!(worker, "error getting media by unique label: {err}");
+                            // we can't be sure which uuid it is
                             continue;
                         }
+                        Ok(None) => {} // ok to inventorize
                     }
                 }
 
@@ -1079,13 +1099,20 @@ fn barcode_label_media_worker(
         }
 
         inventory.reload()?;
-        if inventory.find_media_by_label_text(&label_text).is_some() {
-            task_log!(
-                worker,
-                "media '{}' already inventoried (already labeled)",
-                label_text
-            );
-            continue;
+        match inventory.find_media_by_label_text(&label_text) {
+            Ok(Some(_)) => {
+                task_log!(
+                    worker,
+                    "media '{}' already inventoried (already labeled)",
+                    label_text
+                );
+                continue;
+            }
+            Err(err) => {
+                task_warn!(worker, "error getting media by unique label: {err}",);
+                continue;
+            }
+            Ok(None) => {} // ok to label
         }
 
         task_log!(worker, "checking/loading media '{}'", label_text);

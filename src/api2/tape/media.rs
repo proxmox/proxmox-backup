@@ -303,7 +303,7 @@ pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), E
     let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let uuid = inventory
-        .find_media_by_label_text(&label_text)
+        .find_media_by_label_text(&label_text)?
         .ok_or_else(|| format_err!("no such media '{}'", label_text))?
         .label
         .uuid
@@ -339,7 +339,7 @@ pub fn destroy_media(label_text: String, force: Option<bool>) -> Result<(), Erro
     let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let media_id = inventory
-        .find_media_by_label_text(&label_text)
+        .find_media_by_label_text(&label_text)?
         .ok_or_else(|| format_err!("no such media '{}'", label_text))?;
 
     if !force {
