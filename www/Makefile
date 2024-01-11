@@ -21,6 +21,7 @@ TAPE_UI_FILES=						\
 	tape/window/Erase.js				\
 	tape/window/EncryptionEdit.js			\
 	tape/window/LabelMedia.js			\
+	tape/window/MediaRemoveWindow.js		\
 	tape/window/PoolEdit.js				\
 	tape/window/TapeBackup.js			\
 	tape/window/TapeBackupJob.js			\

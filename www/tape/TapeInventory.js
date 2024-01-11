@@ -60,6 +60,27 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    }).show();
 	},
 
+	remove: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+	    let uuid = selection[0].data.uuid;
+	    let label = selection[0].data['label-text'];
+	    Ext.create('PBS.TapeManagement.MediaRemoveWindow', {
+		uuid,
+		label,
+		autoShow: true,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    });
+	},
+
 	moveToVault: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -205,6 +226,12 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    text: gettext('Format'),
 	    disabled: true,
 	    handler: 'format',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Remove'),
+	    disabled: true,
+	    handler: 'remove',
 	},
     ],
 
