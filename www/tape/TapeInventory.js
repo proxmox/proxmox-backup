@@ -17,7 +17,7 @@ Ext.define('pbs-model-tapes', {
 	'status',
 	'uuid',
     ],
-    idProperty: 'label-text',
+    idProperty: 'uuid',
     proxy: {
 	type: 'proxmox',
 	url: '/api2/json/tape/media/list',
@@ -292,6 +292,12 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 		return record.data.expired ? 'expired' : value;
 	    },
 	    flex: 1,
+	},
+	{
+	    text: gettext('UUID'),
+	    dataIndex: 'uuid',
+	    flex: 1,
+	    hidden: true,
 	},
     ],
 });
