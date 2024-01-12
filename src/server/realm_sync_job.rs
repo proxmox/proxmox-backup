@@ -10,9 +10,9 @@ use proxmox_sys::{task_log, task_warn};
 use std::{collections::HashSet, sync::Arc};
 
 use pbs_api_types::{
-    ApiToken, Authid, LdapRealmConfig, Realm, RemoveVanished, SyncAttributes as LdapSyncAttributes,
-    SyncDefaultsOptions, User, Userid, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
-    REMOVE_VANISHED_ARRAY, USER_CLASSES_ARRAY,
+    AdRealmConfig, ApiToken, Authid, LdapRealmConfig, Realm, RealmType, RemoveVanished,
+    SyncAttributes as LdapSyncAttributes, SyncDefaultsOptions, User, Userid, EMAIL_SCHEMA,
+    FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, REMOVE_VANISHED_ARRAY, USER_CLASSES_ARRAY,
 };
 
 use crate::{auth, server::jobstate::Job};
@@ -22,6 +22,7 @@ use crate::{auth, server::jobstate::Job};
 pub fn do_realm_sync_job(
     mut job: Job,
     realm: Realm,
+    realm_type: RealmType,
     auth_id: &Authid,
     _schedule: Option<String>,
     to_stdout: bool,
@@ -46,13 +47,69 @@ pub fn do_realm_sync_job(
             };
 
             async move {
-                let sync_job = LdapRealmSyncJob::new(worker, realm, &override_settings, dry_run)?;
-                sync_job.sync().await
+                match realm_type {
+                    RealmType::Ldap => {
+                        LdapRealmSyncJob::new(worker, realm, &override_settings, dry_run)?
+                            .sync()
+                            .await
+                    }
+                    RealmType::Ad => {
+                        AdRealmSyncJob::new(worker, realm, &override_settings, dry_run)?
+                            .sync()
+                            .await
+                    }
+                    _ => bail!("cannot sync realm {realm} of type {realm_type}"),
+                }
             }
         },
     )?;
 
     Ok(upid_str)
+}
+
+/// Implementation for syncing Active Directory realms. Merely a thin wrapper over
+/// `LdapRealmSyncJob`, as AD is just LDAP with some special requirements.
+struct AdRealmSyncJob(LdapRealmSyncJob);
+
+impl AdRealmSyncJob {
+    fn new(
+        worker: Arc<WorkerTask>,
+        realm: Realm,
+        override_settings: &GeneralSyncSettingsOverride,
+        dry_run: bool,
+    ) -> Result<Self, Error> {
+        let (domains, _digest) = pbs_config::domains::config()?;
+        let config = if let Ok(config) = domains.lookup::<AdRealmConfig>("ad", realm.as_str()) {
+            config
+        } else {
+            bail!("unknown Active Directory realm '{}'", realm.as_str());
+        };
+
+        let sync_settings = GeneralSyncSettings::default()
+            .apply_config(config.sync_defaults_options.as_deref())?
+            .apply_override(override_settings)?;
+        let sync_attributes = LdapSyncSettings::new(
+            "sAMAccountName",
+            config.sync_attributes.as_deref(),
+            config.user_classes.as_deref(),
+            config.filter.as_deref(),
+        )?;
+
+        let ldap_config = auth::AdAuthenticator::api_type_to_config(&config)?;
+
+        Ok(Self(LdapRealmSyncJob {
+            worker,
+            realm,
+            general_sync_settings: sync_settings,
+            ldap_sync_settings: sync_attributes,
+            ldap_config,
+            dry_run,
+        }))
+    }
+
+    async fn sync(&self) -> Result<(), Error> {
+        self.0.sync().await
+    }
 }
 
 /// Implementation for syncing LDAP realms
@@ -77,7 +134,7 @@ impl LdapRealmSyncJob {
         let config = if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm.as_str()) {
             config
         } else {
-            bail!("unknown realm '{}'", realm.as_str());
+            bail!("unknown LDAP realm '{}'", realm.as_str());
         };
 
         let sync_settings = GeneralSyncSettings::default()

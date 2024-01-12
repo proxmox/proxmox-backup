@@ -1,13 +1,14 @@
 //! List Authentication domains/realms
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    Authid, BasicRealmInfo, Realm, PRIV_PERMISSIONS_MODIFY, REMOVE_VANISHED_SCHEMA, UPID_SCHEMA,
+    Authid, BasicRealmInfo, Realm, RealmRef, RealmType, PRIV_PERMISSIONS_MODIFY,
+    REMOVE_VANISHED_SCHEMA, UPID_SCHEMA,
 };
 
 use crate::server::jobstate::Job;
@@ -102,6 +103,7 @@ pub fn sync_realm(
     let upid_str = crate::server::do_realm_sync_job(
         job,
         realm.clone(),
+        realm_type_from_name(&realm)?,
         &auth_id,
         None,
         to_stdout,
@@ -118,6 +120,18 @@ pub fn sync_realm(
     })?;
 
     Ok(json!(upid_str))
+}
+
+fn realm_type_from_name(realm: &RealmRef) -> Result<RealmType, Error> {
+    let config = pbs_config::domains::config()?.0;
+
+    for (name, (section_type, _)) in config.sections.iter() {
+        if name == realm.as_str() {
+            return Ok(section_type.parse()?);
+        }
+    }
+
+    bail!("unable to find realm {realm}")
 }
 
 const SYNC_ROUTER: Router = Router::new().post(&API_METHOD_SYNC_REALM);
