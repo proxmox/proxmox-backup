@@ -310,6 +310,8 @@ pub(crate) fn lookup_authenticator(
             let (domains, _digest) = pbs_config::domains::config()?;
             if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
                 Ok(Box::new(LdapAuthenticator { config }))
+            } else if let Ok(config) = domains.lookup::<AdRealmConfig>("ad", realm) {
+                Ok(Box::new(AdAuthenticator { config }))
             } else if domains.lookup::<OpenIdRealmConfig>("openid", realm).is_ok() {
                 Ok(Box::new(OpenIdAuthenticator()))
             } else {

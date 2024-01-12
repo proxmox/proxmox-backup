@@ -8,13 +8,14 @@ use proxmox_schema::{ApiType, ObjectSchema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
-use pbs_api_types::{LdapRealmConfig, OpenIdRealmConfig, REALM_ID_SCHEMA};
+use pbs_api_types::{AdRealmConfig, LdapRealmConfig, OpenIdRealmConfig, REALM_ID_SCHEMA};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {
+    const AD_SCHEMA: &ObjectSchema = AdRealmConfig::API_SCHEMA.unwrap_object_schema();
     const LDAP_SCHEMA: &ObjectSchema = LdapRealmConfig::API_SCHEMA.unwrap_object_schema();
     const OPENID_SCHEMA: &ObjectSchema = OpenIdRealmConfig::API_SCHEMA.unwrap_object_schema();
 
@@ -30,6 +31,10 @@ fn init() -> SectionConfig {
 
     let plugin =
         SectionConfigPlugin::new("ldap".to_string(), Some(String::from("realm")), LDAP_SCHEMA);
+
+    config.register_plugin(plugin);
+
+    let plugin = SectionConfigPlugin::new("ad".to_string(), Some(String::from("realm")), AD_SCHEMA);
 
     config.register_plugin(plugin);
 
