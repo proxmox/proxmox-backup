@@ -130,6 +130,9 @@ pub use openid::*;
 mod ldap;
 pub use ldap::*;
 
+mod ad;
+pub use ad::*;
+
 mod remote;
 pub use remote::*;
 

@@ -2,12 +2,14 @@ use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
+pub mod ad;
 pub mod ldap;
 pub mod openid;
 pub mod tfa;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("ad", &ad::ROUTER),
     ("ldap", &ldap::ROUTER),
     ("openid", &openid::ROUTER),
     ("tfa", &tfa::ROUTER),

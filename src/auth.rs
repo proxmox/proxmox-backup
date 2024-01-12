@@ -19,7 +19,9 @@ use proxmox_auth_api::Keyring;
 use proxmox_ldap::{Config, Connection, ConnectionMode};
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
-use pbs_api_types::{LdapMode, LdapRealmConfig, OpenIdRealmConfig, RealmRef, Userid, UsernameRef};
+use pbs_api_types::{
+    AdRealmConfig, LdapMode, LdapRealmConfig, OpenIdRealmConfig, RealmRef, Userid, UsernameRef,
+};
 use pbs_buildcfg::configdir;
 
 use crate::auth_helpers;
@@ -199,6 +201,80 @@ impl LdapAuthenticator {
             additional_trusted_certificates: trusted_cert,
             certificate_store_path: ca_store,
         })
+    }
+}
+
+pub struct AdAuthenticator {
+    config: AdRealmConfig,
+}
+
+impl AdAuthenticator {
+    pub fn api_type_to_config(config: &AdRealmConfig) -> Result<Config, Error> {
+        Self::api_type_to_config_with_password(
+            config,
+            auth_helpers::get_ldap_bind_password(&config.realm)?,
+        )
+    }
+
+    pub fn api_type_to_config_with_password(
+        config: &AdRealmConfig,
+        password: Option<String>,
+    ) -> Result<Config, Error> {
+        let mut servers = vec![config.server1.clone()];
+        if let Some(server) = &config.server2 {
+            servers.push(server.clone());
+        }
+
+        let (ca_store, trusted_cert) = lookup_ca_store_or_cert_path(config.capath.as_deref());
+
+        Ok(Config {
+            servers,
+            port: config.port,
+            user_attr: "sAMAccountName".to_owned(),
+            base_dn: config.base_dn.clone().unwrap_or_default(),
+            bind_dn: config.bind_dn.clone(),
+            bind_password: password,
+            tls_mode: ldap_to_conn_mode(config.mode.unwrap_or_default()),
+            verify_certificate: config.verify.unwrap_or_default(),
+            additional_trusted_certificates: trusted_cert,
+            certificate_store_path: ca_store,
+        })
+    }
+}
+
+impl Authenticator for AdAuthenticator {
+    /// Authenticate user in AD realm
+    fn authenticate_user<'a>(
+        &'a self,
+        username: &'a UsernameRef,
+        password: &'a str,
+        _client_ip: Option<&'a IpAddr>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+        Box::pin(async move {
+            let ldap_config = Self::api_type_to_config(&self.config)?;
+            let ldap = Connection::new(ldap_config);
+            ldap.authenticate_user(username.as_str(), password).await?;
+            Ok(())
+        })
+    }
+
+    fn store_password(
+        &self,
+        _username: &UsernameRef,
+        _password: &str,
+        _client_ip: Option<&IpAddr>,
+    ) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "storing passwords is not implemented for Active Directory realms"
+        );
+    }
+
+    fn remove_password(&self, _username: &UsernameRef) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "removing passwords is not implemented for Active Directory realms"
+        );
     }
 }
 
