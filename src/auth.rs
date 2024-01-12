@@ -185,12 +185,6 @@ impl LdapAuthenticator {
             servers.push(server.clone());
         }
 
-        let tls_mode = match config.mode.unwrap_or_default() {
-            LdapMode::Ldap => ConnectionMode::Ldap,
-            LdapMode::StartTls => ConnectionMode::StartTls,
-            LdapMode::Ldaps => ConnectionMode::Ldaps,
-        };
-
         let (ca_store, trusted_cert) = if let Some(capath) = config.capath.as_deref() {
             let path = PathBuf::from(capath);
             if path.is_dir() {
@@ -209,11 +203,19 @@ impl LdapAuthenticator {
             base_dn: config.base_dn.clone(),
             bind_dn: config.bind_dn.clone(),
             bind_password: password,
-            tls_mode,
+            tls_mode: ldap_to_conn_mode(config.mode.unwrap_or_default()),
             verify_certificate: config.verify.unwrap_or_default(),
             additional_trusted_certificates: trusted_cert,
             certificate_store_path: ca_store,
         })
+    }
+}
+
+fn ldap_to_conn_mode(mode: LdapMode) -> ConnectionMode {
+    match mode {
+        LdapMode::Ldap => ConnectionMode::Ldap,
+        LdapMode::StartTls => ConnectionMode::StartTls,
+        LdapMode::Ldaps => ConnectionMode::Ldaps,
     }
 }
 
