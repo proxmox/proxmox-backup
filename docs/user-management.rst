@@ -27,6 +27,9 @@ choose the realm when you add a new user. Possible realms are:
 
 :ldap: LDAP server. Users can authenticate against external LDAP servers.
 
+:ad: Active Directory server. Users can authenticate against external Active
+     Directory servers.
+
 After installation, there is a single user, ``root@pam``, which corresponds to
 the Unix superuser. User configuration information is stored in the file
 ``/etc/proxmox-backup/user.cfg``. You can use the ``proxmox-backup-manager``
@@ -646,15 +649,47 @@ A full list of all configuration parameters can be found at :ref:`domains.cfg`.
   server, you must also add them as a user of that realm in Proxmox Backup
   Server. This can be carried out automatically with syncing.
 
-User Synchronization in LDAP realms
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _user_realms_ad:
 
-It is possible to automatically sync users for LDAP-based realms, rather than
-having to add them to Proxmox VE manually. Synchronization options can be set
-in the LDAP realm configuration dialog window in the GUI and via the
-``proxmox-backup-manager ldap create/update`` command.
-User synchronization can started in the GUI at
-Configuration > Access Control > Realms by selecting a realm and pressing the
-`Sync` button. In the sync dialog, some of the default options set in the realm
-configuration can be overridden. Alternatively, user synchronization can also
-be started via the ``proxmox-backup-manager ldap sync`` command.
+Active Directory
+~~~~~~~~~~~~~~~~
+
+Proxmox Backup Server can also utilize external Microsoft Active Directory
+servers for user authentication.
+To achieve this, a realm of the type ``ad`` has to be configured.
+
+For an Active Directory realm, the authentication domain name and the server
+address must be specified. Most options from :ref:`user_realms_ldap` apply to
+Active Directory as well, most importantly the bind credentials ``bind-dn``
+and ``password``. This is typically required by default for Microsoft Active
+Directory. The ``bind-dn`` can be specified either in AD-specific
+``user@company.net`` syntax or the commen LDAP-DN syntax.
+
+The authentication domain name must only be specified if anonymous bind is
+requested. If bind credentials are given, the domain name is automatically
+inferred from the bind users' base domain, as reported by the Active Directory
+server.
+
+A full list of all configuration parameters can be found at :ref:`domains.cfg`.
+
+.. note:: In order to allow a particular user to authenticate using the Active
+  Directory server, you must also add them as a user of that realm in Proxmox
+  Backup Server. This can be carried out automatically with syncing.
+
+.. note:: Currently, case-insensitive usernames are not supported.
+
+User Synchronization in LDAP/AD realms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to automatically sync users for LDAP and AD-based realms, rather
+than having to add them to Proxmox Backup Server manually. Synchronization
+options can be set in the LDAP realm configuration dialog window in the GUI and
+via the ``proxmox-backup-manager ldap`` and ``proxmox-backup-manager ad``
+commands, respectively.
+
+User synchronization can be started in the GUI under **Configuration > Access
+Control > Realms** by selecting a realm and pressing the `Sync` button. In the
+sync dialog, some of the default options set in the realm configuration can be
+overridden. Alternatively, user synchronization can also be started via the
+``proxmox-backup-manager ldap sync`` and ``proxmox-backup-manager ad sync``
+command, respectively.

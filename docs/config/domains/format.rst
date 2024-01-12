@@ -23,5 +23,5 @@ For LDAP realms, the LDAP bind password is stored in ``ldap_passwords.json``.
 	user-classes inetorgperson,posixaccount,person,user
 
 
-You can use the ``proxmox-backup-manager openid`` and ``proxmox-backup-manager ldap`` commands to manipulate
-this file.
+You can use the ``proxmox-backup-manager openid``, ``proxmox-backup-manager
+ldap`` and ``proxmox-backup-manager ad`` commands to manipulate this file.
