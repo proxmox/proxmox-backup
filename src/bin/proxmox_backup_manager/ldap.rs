@@ -98,7 +98,7 @@ fn show_ldap_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
     },
 )]
 /// Sync a given LDAP realm
-async fn sync_ldap_realm(param: Value) -> Result<Value, Error> {
+pub async fn sync_ldap_realm(param: Value) -> Result<Value, Error> {
     let realm = required_string_param(&param, "realm")?;
     let client = connect_to_localhost()?;
 

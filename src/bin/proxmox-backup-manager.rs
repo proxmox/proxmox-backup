@@ -500,6 +500,7 @@ async fn run() -> Result<(), Error> {
         .insert("disk", disk_commands())
         .insert("dns", dns_commands())
         .insert("ldap", ldap_commands())
+        .insert("ad", ad_commands())
         .insert("network", network_commands())
         .insert("node", node_commands())
         .insert("notification", notification_commands())

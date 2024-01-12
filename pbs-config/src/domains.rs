@@ -100,3 +100,7 @@ pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) 
 pub fn complete_ldap_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     complete_realm_of_type("ldap")
 }
+
+pub fn complete_ad_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    complete_realm_of_type("ad")
+}
