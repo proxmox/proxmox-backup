@@ -185,16 +185,7 @@ impl LdapAuthenticator {
             servers.push(server.clone());
         }
 
-        let (ca_store, trusted_cert) = if let Some(capath) = config.capath.as_deref() {
-            let path = PathBuf::from(capath);
-            if path.is_dir() {
-                (Some(path), None)
-            } else {
-                (None, Some(vec![path]))
-            }
-        } else {
-            (None, None)
-        };
+        let (ca_store, trusted_cert) = lookup_ca_store_or_cert_path(config.capath.as_deref());
 
         Ok(Config {
             servers,
@@ -216,6 +207,19 @@ fn ldap_to_conn_mode(mode: LdapMode) -> ConnectionMode {
         LdapMode::Ldap => ConnectionMode::Ldap,
         LdapMode::StartTls => ConnectionMode::StartTls,
         LdapMode::Ldaps => ConnectionMode::Ldaps,
+    }
+}
+
+fn lookup_ca_store_or_cert_path(capath: Option<&str>) -> (Option<PathBuf>, Option<Vec<PathBuf>>) {
+    if let Some(capath) = capath {
+        let path = PathBuf::from(capath);
+        if path.is_dir() {
+            (Some(path), None)
+        } else {
+            (None, Some(vec![path]))
+        }
+    } else {
+        (None, None)
     }
 }
 
