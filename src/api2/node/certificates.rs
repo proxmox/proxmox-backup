@@ -96,6 +96,7 @@ pub struct CertificateInfo {
     public_key_bits: Option<u32>,
 
     /// The SSL Fingerprint.
+    #[serde(skip_serializing_if = "Option::is_none")]
     fingerprint: Option<String>,
 }
 
