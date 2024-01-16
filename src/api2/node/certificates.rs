@@ -64,8 +64,7 @@ const ACME_SUBDIRS: SubdirMap = &[(
 #[serde(rename_all = "kebab-case")]
 pub struct CertificateInfo {
     /// Certificate file name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub filename: Option<String>,
+    pub filename: String,
 
     /// Certificate subject name.
     pub subject: String,
@@ -100,38 +99,6 @@ pub struct CertificateInfo {
     pub fingerprint: Option<String>,
 }
 
-impl TryFrom<&cert::CertInfo> for CertificateInfo {
-    type Error = Error;
-
-    fn try_from(info: &cert::CertInfo) -> Result<Self, Self::Error> {
-        let pubkey = info.public_key()?;
-
-        Ok(Self {
-            filename: None,
-            subject: info.subject_name()?,
-            san: info
-                .subject_alt_names()
-                .map(|san| {
-                    san.into_iter()
-                        // FIXME: Support `.ipaddress()`?
-                        .filter_map(|name| name.dnsname().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            issuer: info.issuer_name()?,
-            notbefore: info.not_before_unix().ok(),
-            notafter: info.not_after_unix().ok(),
-            pem: None,
-            public_key_type: openssl::nid::Nid::from_raw(pubkey.id().as_raw())
-                .long_name()
-                .unwrap_or("<unsupported key type>")
-                .to_owned(),
-            public_key_bits: Some(pubkey.bits()),
-            fingerprint: Some(info.fingerprint()?),
-        })
-    }
-}
-
 fn get_certificate_pem() -> Result<String, Error> {
     let cert_path = configdir!("/proxy.pem");
     let cert_pem = proxmox_sys::fs::file_get_contents(cert_path)?;
@@ -163,12 +130,31 @@ fn pem_to_cert_info(pem: &[u8]) -> Result<cert::CertInfo, Error> {
 /// Get certificate info.
 pub fn get_info() -> Result<Vec<CertificateInfo>, Error> {
     let cert_pem = get_certificate_pem()?;
-    let cert = pem_to_cert_info(cert_pem.as_bytes())?;
+    let info = pem_to_cert_info(cert_pem.as_bytes())?;
+    let pubkey = info.public_key()?;
 
     Ok(vec![CertificateInfo {
-        filename: Some("proxy.pem".to_string()), // we only have the one
+        filename: "proxy.pem".to_string(), // we only have the one
         pem: Some(cert_pem),
-        ..CertificateInfo::try_from(&cert)?
+        subject: info.subject_name()?,
+        san: info
+            .subject_alt_names()
+            .map(|san| {
+                san.into_iter()
+                    // FIXME: Support `.ipaddress()`?
+                    .filter_map(|name| name.dnsname().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        issuer: info.issuer_name()?,
+        notbefore: info.not_before_unix().ok(),
+        notafter: info.not_after_unix().ok(),
+        public_key_type: openssl::nid::Nid::from_raw(pubkey.id().as_raw())
+            .long_name()
+            .unwrap_or("<unsupported key type>")
+            .to_owned(),
+        public_key_bits: Some(pubkey.bits()),
+        fingerprint: Some(info.fingerprint()?),
     }])
 }
 
