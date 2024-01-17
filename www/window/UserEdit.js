@@ -66,7 +66,6 @@ Ext.define('PBS.window.UserEdit', {
 		fieldLabel: gettext('User name'),
 		renderer: Ext.htmlEncode,
 		allowBlank: false,
-		minLength: 4,
 		cbind: {
 		    editable: '{isCreate}',
 		},
