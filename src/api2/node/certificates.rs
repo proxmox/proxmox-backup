@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -163,7 +164,10 @@ pub fn get_info() -> Result<Vec<CertificateInfo>, Error> {
         properties: {
             node: { schema: NODE_SCHEMA },
             certificates: { description: "PEM encoded certificate (chain)." },
-            key: { description: "PEM encoded private key." },
+            key: {
+                description: "PEM encoded private key.",
+                optional: true,
+            },
             // FIXME: widget-toolkit should have an option to disable using these 2 parameters...
             restart: {
                 description: "UI compatibility parameter, ignored",
@@ -192,10 +196,19 @@ pub fn get_info() -> Result<Vec<CertificateInfo>, Error> {
 /// Upload a custom certificate.
 pub async fn upload_custom_certificate(
     certificates: String,
-    key: String,
+    key: Option<String>,
 ) -> Result<Vec<CertificateInfo>, Error> {
     let certificates = X509::stack_from_pem(certificates.as_bytes())
         .map_err(|err| format_err!("failed to decode certificate chain: {}", err))?;
+
+    let key = match key {
+        Some(key) => key,
+        None => {
+            let key_path = PathBuf::from(configdir!("/proxy.key"));
+            proxmox_sys::fs::file_read_string(key_path)?
+        }
+    };
+
     let key = PKey::private_key_from_pem(key.as_bytes())
         .map_err(|err| format_err!("failed to parse private key: {}", err))?;
 
