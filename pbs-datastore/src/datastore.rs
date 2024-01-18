@@ -605,9 +605,7 @@ impl DataStore {
         owner
             .trim_end() // remove trailing newline
             .parse()
-            .map_err(|err| {
-                format_err!("parsing owner for {backup_group} failed: {err}")
-            })
+            .map_err(|err| format_err!("parsing owner for {backup_group} failed: {err}"))
     }
 
     pub fn owns_backup(
