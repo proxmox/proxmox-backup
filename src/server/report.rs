@@ -106,7 +106,7 @@ fn function_calls() -> Vec<FunctionMapping> {
             for store in config.sections.keys() {
                 list.push(store.as_str());
             }
-            list.join(", ")
+            format!("```\n{}\n```", list.join(", "))
         }),
         ("System Load & Uptime", get_top_processes),
     ]
@@ -215,7 +215,7 @@ pub fn generate_report() -> String {
         .iter()
         .map(|(desc, function)| {
             let output = function();
-            format!("#### {desc}\n```\n{}\n```", output.trim_end())
+            format!("#### {desc}\n{}\n", output.trim_end())
         })
         .collect::<Vec<String>>()
         .join("\n\n");
