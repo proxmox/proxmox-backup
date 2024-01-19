@@ -8,7 +8,7 @@ use nix::sys::stat::Mode;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::X509Builder;
-use std::path::PathBuf;
+use std::path::Path;
 
 use proxmox_lang::try_block;
 
@@ -84,8 +84,8 @@ pub fn create_configdir() -> Result<(), Error> {
 
 /// Update self signed node certificate.
 pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/proxy.key"));
-    let cert_path = PathBuf::from(configdir!("/proxy.pem"));
+    let key_path = Path::new(configdir!("/proxy.key"));
+    let cert_path = Path::new(configdir!("/proxy.pem"));
 
     if key_path.exists() && cert_path.exists() && !force {
         return Ok(());
@@ -183,8 +183,8 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 }
 
 pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
-    let key_path = PathBuf::from(configdir!("/proxy.key"));
-    let cert_path = PathBuf::from(configdir!("/proxy.pem"));
+    let key_path = Path::new(configdir!("/proxy.key"));
+    let cert_path = Path::new(configdir!("/proxy.pem"));
 
     create_configdir()?;
     pbs_config::replace_backup_config(key_path, key_pem)
