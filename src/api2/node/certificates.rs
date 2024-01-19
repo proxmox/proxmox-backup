@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -203,10 +202,7 @@ pub async fn upload_custom_certificate(
 
     let key = match key {
         Some(key) => key,
-        None => {
-            let key_path = PathBuf::from(configdir!("/proxy.key"));
-            proxmox_sys::fs::file_read_string(key_path)?
-        }
+        None => proxmox_sys::fs::file_read_string(configdir!("/proxy.key"))?,
     };
 
     let key = PKey::private_key_from_pem(key.as_bytes())
