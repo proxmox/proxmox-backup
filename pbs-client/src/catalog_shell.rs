@@ -304,68 +304,6 @@ async fn restore_command(target: String, pattern: Option<String>) -> Result<(), 
 /// The `Path` type's component iterator does not tell us anything about trailing slashes or
 /// trailing `Component::CurDir` entries. Since we only support regular paths we'll roll our own
 /// here:
-enum PathComponent<'a> {
-    Root,
-    CurDir,
-    ParentDir,
-    Normal(&'a OsStr),
-    TrailingSlash,
-}
-
-struct PathComponentIter<'a> {
-    path: &'a [u8],
-    state: u8, // 0=beginning, 1=ongoing, 2=trailing, 3=finished (fused)
-}
-
-impl std::iter::FusedIterator for PathComponentIter<'_> {}
-
-impl<'a> Iterator for PathComponentIter<'a> {
-    type Item = PathComponent<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.path.is_empty() {
-            return None;
-        }
-
-        if self.state == 0 {
-            self.state = 1;
-            if self.path[0] == b'/' {
-                // absolute path
-                self.path = &self.path[1..];
-                return Some(PathComponent::Root);
-            }
-        }
-
-        // skip slashes
-        let had_slashes = self.path[0] == b'/';
-        while self.path.first().copied() == Some(b'/') {
-            self.path = &self.path[1..];
-        }
-
-        Some(match self.path {
-            [] if had_slashes => PathComponent::TrailingSlash,
-            [] => return None,
-            [b'.'] | [b'.', b'/', ..] => {
-                self.path = &self.path[1..];
-                PathComponent::CurDir
-            }
-            [b'.', b'.'] | [b'.', b'.', b'/', ..] => {
-                self.path = &self.path[2..];
-                PathComponent::ParentDir
-            }
-            _ => {
-                let end = self
-                    .path
-                    .iter()
-                    .position(|&b| b == b'/')
-                    .unwrap_or(self.path.len());
-                let (out, rest) = self.path.split_at(end);
-                self.path = rest;
-                PathComponent::Normal(OsStr::from_bytes(out))
-            }
-        })
-    }
-}
 
 pub struct Shell {
     /// Readline instance handling input and callbacks
