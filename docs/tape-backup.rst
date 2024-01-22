@@ -99,7 +99,7 @@ to write to your tape at full speed, please make sure that the source
 datastore is able to deliver that performance (for example, by using SSDs).
 
 LTO-9+ considerations
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Since LTO-9, it is necessary to initialize new media in your drives, this is
 called `Media Optimization`. This usually takes between 40 and 120 minutes per
