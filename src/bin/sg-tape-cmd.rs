@@ -6,6 +6,8 @@ use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 
 use anyhow::{bail, Error};
+use pbs_tape::sg_tape::SgTape;
+use proxmox_backup::tape::encryption_keys::load_key;
 use serde_json::Value;
 
 use proxmox_router::{cli::*, RpcEnvironment};
@@ -19,28 +21,26 @@ use pbs_api_types::{
 
 use pbs_tape::linux_list_drives::{check_tape_is_lto_tape_device, open_lto_tape_device};
 
-use proxmox_backup::tape::drive::{LtoTapeHandle, TapeDriver};
-
-fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
+fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
     let handle = if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", name)?;
         log::info!("using device {}", drive.path);
-        LtoTapeHandle::open_lto_drive(&drive)?
+        SgTape::open_lto_drive(&drive)?
     } else if let Some(device) = param["device"].as_str() {
         log::info!("using device {}", device);
-        LtoTapeHandle::new(open_lto_tape_device(device)?)?
+        SgTape::new(open_lto_tape_device(device)?)?
     } else if let Some(true) = param["stdin"].as_bool() {
         log::info!("using stdin");
         let fd = std::io::stdin().as_raw_fd();
         let file = unsafe { File::from_raw_fd(fd) };
         check_tape_is_lto_tape_device(&file)?;
-        LtoTapeHandle::new(file)?
+        SgTape::new(file)?
     } else if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         log::info!("using device {}", drive.path);
-        LtoTapeHandle::open_lto_drive(&drive)?
+        SgTape::open_lto_drive(&drive)?
     } else {
         let (config, _digest) = pbs_config::drive::config()?;
 
@@ -56,7 +56,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
             let name = drive_names[0];
             let drive: LtoTapeDrive = config.lookup("lto", name)?;
             log::info!("using device {}", drive.path);
-            LtoTapeHandle::open_lto_drive(&drive)?
+            SgTape::open_lto_drive(&drive)?
         } else {
             bail!("no drive/device specified");
         }
@@ -103,7 +103,8 @@ fn set_encryption(
 
         match (fingerprint, uuid) {
             (Some(fingerprint), Some(uuid)) => {
-                handle.set_encryption(Some((fingerprint, uuid)))?;
+                let key = load_key(&fingerprint)?;
+                handle.set_encryption(Some((key, uuid)))?;
             }
             (Some(_), None) => {
                 bail!("missing media set uuid");
