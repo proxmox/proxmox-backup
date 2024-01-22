@@ -266,18 +266,18 @@ impl TapeDriver for LtoTapeHandle {
         &mut self,
         key_fingerprint: Option<(Fingerprint, Uuid)>,
     ) -> Result<(), Error> {
-        let output = if let Some((fingerprint, uuid)) = key_fingerprint {
+        if let Some((fingerprint, uuid)) = key_fingerprint {
             let fingerprint = fingerprint.signature();
-            run_sg_tape_cmd(
+            let output = run_sg_tape_cmd(
                 "encryption",
                 &["--fingerprint", &fingerprint, "--uuid", &uuid.to_string()],
                 self.sg_tape.file_mut().as_raw_fd(),
-            )?
+            )?;
+            let result: Result<(), String> = serde_json::from_str(&output)?;
+            result.map_err(|err| format_err!("{}", err))
         } else {
-            run_sg_tape_cmd("encryption", &[], self.sg_tape.file_mut().as_raw_fd())?
-        };
-        let result: Result<(), String> = serde_json::from_str(&output)?;
-        result.map_err(|err| format_err!("{}", err))
+            self.sg_tape.set_encryption(None)
+        }
     }
 }
 
