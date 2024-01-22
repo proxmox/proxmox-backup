@@ -271,7 +271,7 @@ proxmox-rrd.workspace = true
 #proxmox-time = { path = "../proxmox/proxmox-time" }
 #proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
 
-#proxmox-acme = { path = "../proxmox-acme" }
+#proxmox-acme = { path = "../proxmox/proxmox-acme" }
 #pathpatterns = {path = "../pathpatterns" }
 #pxar = { path = "../pxar" }
 
