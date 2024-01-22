@@ -271,16 +271,6 @@ impl TapeDriver for LtoTapeHandle {
         &mut self,
         key_fingerprint: Option<(Fingerprint, Uuid)>,
     ) -> Result<(), Error> {
-        if nix::unistd::Uid::effective().is_root() {
-            let key_data = if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
-                let key = crate::tape::encryption_keys::load_key(key_fingerprint)?;
-                Some((key, uuid.clone()))
-            } else {
-                None
-            };
-            return self.sg_tape.set_encryption(key_data);
-        }
-
         let output = if let Some((fingerprint, uuid)) = key_fingerprint {
             let fingerprint = fingerprint.signature();
             run_sg_tape_cmd(
