@@ -9,7 +9,7 @@ use endian_trait::Endian;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 mod encryption;
-pub use encryption::*;
+pub use encryption::{drive_set_encryption, has_encryption};
 
 mod volume_statistics;
 pub use volume_statistics::*;
@@ -606,7 +606,7 @@ impl SgTape {
     pub fn set_encryption(&mut self, key: Option<[u8; 32]>) -> Result<(), Error> {
         self.encryption_key_loaded = key.is_some();
 
-        set_encryption(&mut self.file, key)
+        drive_set_encryption(&mut self.file, key)
     }
 
     // Note: use alloc_page_aligned_buffer to alloc data transfer buffer
