@@ -264,6 +264,13 @@ impl TapeDriver for LtoTapeHandle {
 
         self.sync()?; // sync data to tape
 
+        let encrypt_fingerprint = media_set_label
+            .encryption_key_fingerprint
+            .clone()
+            .map(|fp| (fp, media_set_label.uuid.clone()));
+
+        self.set_encryption(encrypt_fingerprint)?;
+
         Ok(())
     }
 

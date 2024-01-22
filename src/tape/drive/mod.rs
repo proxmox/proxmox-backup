@@ -182,6 +182,15 @@ pub trait TapeDriver {
             bail!("got unexpected data after media set label");
         }
 
+        drop(reader);
+
+        let encrypt_fingerprint = media_set_label
+            .encryption_key_fingerprint
+            .clone()
+            .map(|fp| (fp, media_set_label.uuid.clone()));
+
+        self.set_encryption(encrypt_fingerprint)?;
+
         media_id.media_set_label = Some(media_set_label);
 
         Ok((Some(media_id), key_config))
@@ -203,6 +212,9 @@ pub trait TapeDriver {
     /// We use the media_set_uuid to XOR the secret key with the
     /// uuid (first 16 bytes), so that each media set uses an unique
     /// key for encryption.
+    ///
+    /// Should be called as part of write_media_set_label or read_label,
+    /// so this should not be called manually.
     fn set_encryption(
         &mut self,
         key_fingerprint: Option<(Fingerprint, Uuid)>,
