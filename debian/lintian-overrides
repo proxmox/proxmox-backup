@@ -4,4 +4,5 @@ proxmox-backup-server: elevated-privileges 4755 root/root [usr/lib/x86_64-linux-
 proxmox-backup-server: systemd-service-file-refers-to-unusual-wantedby-target getty.target [lib/systemd/system/proxmox-backup-banner.service]
 proxmox-backup-server: uses-dpkg-database-directly [usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-api]
 proxmox-backup-server: uses-dpkg-database-directly [usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-proxy]
+proxmox-backup-server: uses-dpkg-database-directly [usr/sbin/pbs2to3]
 proxmox-backup-server: uses-dpkg-database-directly [usr/sbin/proxmox-backup-debug]
