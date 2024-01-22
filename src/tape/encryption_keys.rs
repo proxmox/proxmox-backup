@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_sys::fs::file_read_optional_string;
@@ -90,6 +90,14 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>, [u8; 32])
     }
 
     Ok((map, digest))
+}
+
+pub fn load_key(fingerprint: &Fingerprint) -> Result<[u8; 32], Error> {
+    let (key_map, _digest) = crate::tape::encryption_keys::load_keys()?;
+    key_map
+        .get(fingerprint)
+        .map(|data| data.key)
+        .ok_or_else(|| format_err!("unknown tape encryption key '{fingerprint}'"))
 }
 
 /// Load tape encryption key configurations (password protected keys)
