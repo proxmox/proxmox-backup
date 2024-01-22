@@ -77,28 +77,6 @@ impl LtoTapeHandle {
         Ok(handle)
     }
 
-    /// Set all options we need/want
-    pub fn set_default_options(&mut self) -> Result<(), Error> {
-        self.sg_tape.set_default_options()?;
-        Ok(())
-    }
-
-    /// Set driver options
-    pub fn set_drive_options(
-        &mut self,
-        compression: Option<bool>,
-        block_length: Option<u32>,
-        buffer_mode: Option<bool>,
-    ) -> Result<(), Error> {
-        self.sg_tape
-            .set_drive_options(compression, block_length, buffer_mode)
-    }
-
-    /// Write a single EOF mark without flushing buffers
-    pub fn write_filemarks(&mut self, count: usize) -> Result<(), std::io::Error> {
-        self.sg_tape.write_filemarks(count, false)
-    }
-
     /// Get Tape and Media status
     pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error> {
         self.sg_tape.get_drive_and_media_status()
@@ -112,25 +90,9 @@ impl LtoTapeHandle {
         self.sg_tape.space_filemarks(-count.try_into()?)
     }
 
-    pub fn forward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_blocks(count.try_into()?)
-    }
-
-    pub fn backward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_blocks(-count.try_into()?)
-    }
-
     /// Position the tape after filemark count. Count 0 means BOT.
     pub fn locate_file(&mut self, position: u64) -> Result<(), Error> {
         self.sg_tape.locate_file(position)
-    }
-
-    pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
-        self.sg_tape.erase_media(fast)
-    }
-
-    pub fn load(&mut self) -> Result<(), Error> {
-        self.sg_tape.load()
     }
 
     /// Read Cartridge Memory (MAM Attributes)
@@ -141,20 +103,6 @@ impl LtoTapeHandle {
     /// Read Volume Statistics
     pub fn volume_statistics(&mut self) -> Result<Lp17VolumeStatistics, Error> {
         self.sg_tape.volume_statistics()
-    }
-
-    /// Lock the drive door
-    pub fn lock(&mut self) -> Result<(), Error> {
-        self.sg_tape
-            .set_medium_removal(false)
-            .map_err(|err| format_err!("lock door failed - {}", err))
-    }
-
-    /// Unlock the drive door
-    pub fn unlock(&mut self) -> Result<(), Error> {
-        self.sg_tape
-            .set_medium_removal(true)
-            .map_err(|err| format_err!("unlock door failed - {}", err))
     }
 }
 
