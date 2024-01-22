@@ -1029,12 +1029,6 @@ fn restore_snapshots_to_tmpdir(
                     media_set_uuid
                 );
             }
-            let encrypt_fingerprint = set.encryption_key_fingerprint.clone().map(|fp| {
-                task_log!(worker, "Encryption key fingerprint: {}", fp);
-                (fp, set.uuid.clone())
-            });
-
-            drive.set_encryption(encrypt_fingerprint)?;
         }
     }
 
@@ -1279,12 +1273,6 @@ pub fn request_and_restore_media(
                     media_set_uuid
                 );
             }
-            let encrypt_fingerprint = set
-                .encryption_key_fingerprint
-                .clone()
-                .map(|fp| (fp, set.uuid.clone()));
-
-            drive.set_encryption(encrypt_fingerprint)?;
         }
     }
 

@@ -677,9 +677,6 @@ pub async fn read_label(drive: String, inventorize: Option<bool>) -> Result<Medi
         let label = if let Some(ref set) = media_id.media_set_label {
             let key = &set.encryption_key_fingerprint;
 
-            if let Err(err) = drive.set_encryption(key.clone().map(|fp| (fp, set.uuid.clone()))) {
-                eprintln!("unable to load encryption key: {}", err); // best-effort only
-            }
             MediaIdFlat {
                 ctime: media_id.label.ctime,
                 encryption_key_fingerprint: key.as_ref().map(|fp| fp.signature()),
@@ -1358,12 +1355,6 @@ pub fn catalog_media(
                         inventory.store(media_id.clone(), false)?;
                         return Ok(());
                     }
-                    let encrypt_fingerprint = set
-                        .encryption_key_fingerprint
-                        .clone()
-                        .map(|fp| (fp, set.uuid.clone()));
-
-                    drive.set_encryption(encrypt_fingerprint)?;
 
                     let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, &set.pool)?;
                     let media_set_lock = lock_media_set(TAPE_STATUS_DIR, &set.uuid, None)?;
