@@ -104,7 +104,6 @@ pub struct SgTape {
     file: File,
     locate_offset: Option<i64>,
     info: InquiryInfo,
-    encryption_key_loaded: bool,
 }
 
 impl SgTape {
@@ -126,7 +125,6 @@ impl SgTape {
         Ok(Self {
             file,
             info,
-            encryption_key_loaded: false,
             locate_offset: None,
         })
     }
@@ -662,7 +660,6 @@ impl SgTape {
         } else {
             None
         };
-        self.encryption_key_loaded = key.is_some();
 
         drive_set_encryption(&mut self.file, key)
     }
@@ -1015,15 +1012,6 @@ impl SgTape {
         }
 
         Ok(status)
-    }
-}
-
-impl Drop for SgTape {
-    fn drop(&mut self) {
-        // For security reasons, clear the encryption key
-        if self.encryption_key_loaded {
-            let _ = self.set_encryption(None);
-        }
     }
 }
 

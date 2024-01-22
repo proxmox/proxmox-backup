@@ -33,16 +33,32 @@ use crate::tape::{
     file_formats::{MediaSetLabel, PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0},
 };
 
+impl Drop for LtoTapeHandle {
+    fn drop(&mut self) {
+        // always unload the encryption key when the handle is dropped for security
+        // but only log an error if we set one in the first place
+        if let Err(err) = self.set_encryption(None) {
+            if self.encryption_key_loaded {
+                log::error!("could not unload encryption key from drive: {err}");
+            }
+        }
+    }
+}
+
 /// Lto Tape device handle
 pub struct LtoTapeHandle {
     sg_tape: SgTape,
+    encryption_key_loaded: bool,
 }
 
 impl LtoTapeHandle {
     /// Creates a new instance
     pub fn new(file: File) -> Result<Self, Error> {
         let sg_tape = SgTape::new(file)?;
-        Ok(Self { sg_tape })
+        Ok(Self {
+            sg_tape,
+            encryption_key_loaded: false,
+        })
     }
 
     /// Open a tape device
@@ -52,7 +68,10 @@ impl LtoTapeHandle {
     pub fn open_lto_drive(config: &LtoTapeDrive) -> Result<Self, Error> {
         let sg_tape = SgTape::open_lto_drive(config)?;
 
-        let handle = Self { sg_tape };
+        let handle = Self {
+            sg_tape,
+            encryption_key_loaded: false,
+        };
 
         Ok(handle)
     }
@@ -273,6 +292,7 @@ impl TapeDriver for LtoTapeHandle {
                 &["--fingerprint", &fingerprint, "--uuid", &uuid.to_string()],
                 self.sg_tape.file_mut().as_raw_fd(),
             )?;
+            self.encryption_key_loaded = true;
             let result: Result<(), String> = serde_json::from_str(&output)?;
             result.map_err(|err| format_err!("{}", err))
         } else {
