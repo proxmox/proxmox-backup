@@ -16,6 +16,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 
 use anyhow::{bail, format_err, Error};
 
+use pbs_tape::sg_tape::drive_get_encryption;
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
@@ -310,6 +311,14 @@ impl TapeDriver for LtoTapeHandle {
         } else {
             self.sg_tape.set_encryption(None)
         }
+    }
+
+    fn assert_encryption_mode(&mut self, encryption_wanted: bool) -> Result<(), Error> {
+        let encryption_set = drive_get_encryption(self.sg_tape.file_mut())?;
+        if encryption_wanted != encryption_set {
+            bail!("Set encryption mode not what was desired (set: {encryption_set}, wanted: {encryption_wanted})");
+        }
+        Ok(())
     }
 }
 

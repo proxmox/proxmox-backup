@@ -9,7 +9,7 @@ use endian_trait::Endian;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 mod encryption;
-pub use encryption::{drive_set_encryption, has_encryption};
+pub use encryption::{drive_set_encryption, drive_get_encryption, has_encryption};
 
 mod volume_statistics;
 use proxmox_uuid::Uuid;

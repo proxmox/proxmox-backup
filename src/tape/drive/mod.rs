@@ -224,6 +224,14 @@ pub trait TapeDriver {
         }
         Ok(())
     }
+
+    /// Asserts that the encryption mode is set to the given value
+    fn assert_encryption_mode(&mut self, encryption_wanted: bool) -> Result<(), Error> {
+        if encryption_wanted {
+            bail!("drive does not support encryption");
+        }
+        Ok(())
+    }
 }
 
 /// A boxed implementor of [`MediaChange`].
