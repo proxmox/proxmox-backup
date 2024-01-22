@@ -36,8 +36,7 @@ use crate::{
         changer::update_changer_online_status,
         drive::{
             get_tape_device_state, lock_tape_device, media_changer, open_drive,
-            open_lto_tape_drive, required_media_changer, set_tape_device_state, LtoTapeHandle,
-            TapeDriver,
+            required_media_changer, set_tape_device_state, LtoTapeHandle, TapeDriver,
         },
         encryption_keys::insert_key,
         file_formats::{MediaLabel, MediaSetLabel},
@@ -1144,7 +1143,7 @@ pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error>
         "reading cartridge memory".to_string(),
         move |config| {
             let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
-            let mut handle = open_lto_tape_drive(&drive_config)?;
+            let mut handle = LtoTapeHandle::open_lto_drive(&drive_config)?;
 
             handle.cartridge_memory()
         },
@@ -1174,7 +1173,7 @@ pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Er
         "reading volume statistics".to_string(),
         move |config| {
             let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
-            let mut handle = open_lto_tape_drive(&drive_config)?;
+            let mut handle = LtoTapeHandle::open_lto_drive(&drive_config)?;
 
             handle.volume_statistics()
         },

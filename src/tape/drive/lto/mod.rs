@@ -23,7 +23,6 @@ use pbs_api_types::{
 };
 use pbs_key_config::KeyConfig;
 use pbs_tape::{
-    linux_list_drives::open_lto_tape_device,
     sg_tape::{SgTape, TapeAlertFlags},
     BlockReadError, MediaContentHeader, TapeRead, TapeWrite,
 };
@@ -33,43 +32,6 @@ use crate::tape::{
     drive::TapeDriver,
     file_formats::{MediaSetLabel, PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0},
 };
-
-/// Open a tape device
-///
-/// This does additional checks:
-///
-/// - check if it is a non-rewinding tape device
-/// - check if drive is ready (tape loaded)
-/// - check block size
-/// - for autoloader only, try to reload ejected tapes
-pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error> {
-    proxmox_lang::try_block!({
-        let file = open_lto_tape_device(&config.path)?;
-
-        let mut handle = LtoTapeHandle::new(file)?;
-
-        if handle.sg_tape.test_unit_ready().is_err() {
-            // for autoloader only, try to reload ejected tapes
-            if config.changer.is_some() {
-                let _ = handle.sg_tape.load(); // just try, ignore error
-            }
-        }
-
-        handle.sg_tape.wait_until_ready()?;
-
-        handle.set_default_options()?;
-
-        Ok(handle)
-    })
-    .map_err(|err: Error| {
-        format_err!(
-            "open drive '{}' ({}) failed - {}",
-            config.name,
-            config.path,
-            err
-        )
-    })
-}
 
 /// Lto Tape device handle
 pub struct LtoTapeHandle {
@@ -81,6 +43,18 @@ impl LtoTapeHandle {
     pub fn new(file: File) -> Result<Self, Error> {
         let sg_tape = SgTape::new(file)?;
         Ok(Self { sg_tape })
+    }
+
+    /// Open a tape device
+    ///
+    /// since this calls [SgTape::open_lto_drive], it does some internal checks.
+    /// See [SgTape] docs for details.
+    pub fn open_lto_drive(config: &LtoTapeDrive) -> Result<Self, Error> {
+        let sg_tape = SgTape::open_lto_drive(config)?;
+
+        let handle = Self { sg_tape };
+
+        Ok(handle)
     }
 
     /// Set all options we need/want

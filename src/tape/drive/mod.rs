@@ -280,7 +280,7 @@ pub fn open_drive(config: &SectionConfigData, drive: &str) -> Result<Box<dyn Tap
             }
             "lto" => {
                 let tape = LtoTapeDrive::deserialize(config)?;
-                let handle = open_lto_tape_drive(&tape)?;
+                let handle = LtoTapeHandle::open_lto_drive(&tape)?;
                 Ok(Box::new(handle))
             }
             ty => bail!("unknown drive type '{}' - internal error", ty),
@@ -449,7 +449,7 @@ pub fn request_and_load_media(
                             }
                         }
 
-                        let mut handle = match open_lto_tape_drive(&drive_config) {
+                        let mut handle = match LtoTapeHandle::open_lto_drive(&drive_config) {
                             Ok(handle) => handle,
                             Err(err) => {
                                 update_and_log_request_error(

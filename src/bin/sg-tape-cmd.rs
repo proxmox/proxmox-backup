@@ -19,14 +19,14 @@ use pbs_api_types::{
 
 use pbs_tape::linux_list_drives::{check_tape_is_lto_tape_device, open_lto_tape_device};
 
-use proxmox_backup::tape::drive::{open_lto_tape_drive, LtoTapeHandle, TapeDriver};
+use proxmox_backup::tape::drive::{LtoTapeHandle, TapeDriver};
 
 fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
     let handle = if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", name)?;
         log::info!("using device {}", drive.path);
-        open_lto_tape_drive(&drive)?
+        LtoTapeHandle::open_lto_drive(&drive)?
     } else if let Some(device) = param["device"].as_str() {
         log::info!("using device {}", device);
         LtoTapeHandle::new(open_lto_tape_device(device)?)?
@@ -40,7 +40,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         log::info!("using device {}", drive.path);
-        open_lto_tape_drive(&drive)?
+        LtoTapeHandle::open_lto_drive(&drive)?
     } else {
         let (config, _digest) = pbs_config::drive::config()?;
 
@@ -56,7 +56,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
             let name = drive_names[0];
             let drive: LtoTapeDrive = config.lookup("lto", name)?;
             log::info!("using device {}", drive.path);
-            open_lto_tape_drive(&drive)?
+            LtoTapeHandle::open_lto_drive(&drive)?
         } else {
             bail!("no drive/device specified");
         }
