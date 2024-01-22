@@ -129,6 +129,7 @@ For mixing include and exclude filter, following rules apply:
  - include: only those matching the include filters
  - exclude: all but those matching the exclude filters
  - both: those matching the include filters, but without those matching the exclude filters
+
 .. note:: The ``protected`` flag of remote backup snapshots will not be synced.
 
 Namespace Support
