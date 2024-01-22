@@ -559,8 +559,6 @@ a single media pool, so a job only uses tapes from that pool.
 
    - Create a new set when the specified Calendar Event triggers.
 
-     .. _systemd.time manpage: https://manpages.debian.org/buster/systemd/systemd.time.7.en.html
-
      This allows you to specify points in time by using systemd like
      Calendar Event specifications (see `systemd.time manpage`_).
 
