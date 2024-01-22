@@ -8,17 +8,6 @@ use proxmox_io::{ReadExt, WriteExt};
 
 use crate::sgutils2::{alloc_page_aligned_buffer, SgRaw};
 
-/// Test if drive supports hardware encryption
-///
-/// We search for AES_GCM algorithm with 256bits key.
-pub fn has_encryption<F: AsRawFd>(file: &mut F) -> bool {
-    let data = match sg_spin_data_encryption_caps(file) {
-        Ok(data) => data,
-        Err(_) => return false,
-    };
-    decode_spin_data_encryption_caps(&data).is_ok()
-}
-
 /// Set or clear encryption key
 ///
 /// We always use mixed mode,
