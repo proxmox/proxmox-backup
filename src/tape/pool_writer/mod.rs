@@ -270,6 +270,10 @@ impl PoolWriter {
 
         self.catalog_set.lock().unwrap().append_catalog(catalog)?;
 
+        let media_set = media.media_set_label().unwrap();
+
+        drive.assert_encryption_mode(media_set.encryption_key_fingerprint.is_some())?;
+
         self.status = Some(PoolWriterState {
             drive,
             media_uuid: media_uuid.clone(),

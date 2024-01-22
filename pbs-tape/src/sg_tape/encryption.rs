@@ -57,6 +57,27 @@ pub fn drive_set_encryption<F: AsRawFd>(file: &mut F, key: Option<[u8; 32]>) -> 
     bail!("got unexpected encryption mode {:?}", status.mode);
 }
 
+/// Returns if encryption is enabled on the drive
+pub fn drive_get_encryption<F: AsRawFd>(file: &mut F) -> Result<bool, Error> {
+    let data = match sg_spin_data_encryption_status(file) {
+        Ok(data) => data,
+        Err(_) => {
+            // Assume device does not support HW encryption
+            return Ok(false);
+        }
+    };
+    let status = decode_spin_data_encryption_status(&data)?;
+    match status.mode {
+        // these three below have all encryption enabled, and only differ in how decryption is
+        // handled
+        DataEncryptionMode::On => Ok(true),
+        DataEncryptionMode::Mixed => Ok(true),
+        DataEncryptionMode::RawRead => Ok(true),
+        // currently, the mode below is the only one that has encryption actually disabled
+        DataEncryptionMode::Off => Ok(false),
+    }
+}
+
 #[derive(Endian)]
 #[repr(C, packed)]
 struct SspSetDataEncryptionPage {
@@ -187,7 +208,7 @@ fn sg_spin_data_encryption_caps<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Err
         .map(|v| v.to_vec())
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum DataEncryptionMode {
     On,
     Mixed,
