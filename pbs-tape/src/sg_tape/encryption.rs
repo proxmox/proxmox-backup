@@ -22,7 +22,7 @@ pub fn has_encryption<F: AsRawFd>(file: &mut F) -> bool {
 /// Set or clear encryption key
 ///
 /// We always use mixed mode,
-pub fn set_encryption<F: AsRawFd>(file: &mut F, key: Option<[u8; 32]>) -> Result<(), Error> {
+pub fn drive_set_encryption<F: AsRawFd>(file: &mut F, key: Option<[u8; 32]>) -> Result<(), Error> {
     let data = match sg_spin_data_encryption_caps(file) {
         Ok(data) => data,
         Err(_) if key.is_none() => {
