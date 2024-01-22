@@ -26,8 +26,11 @@ pub use report_density::*;
 use proxmox_io::{ReadExt, WriteExt};
 use proxmox_sys::error::SysResult;
 
-use pbs_api_types::{Lp17VolumeStatistics, LtoDriveAndMediaStatus, MamAttribute, TapeDensity};
+use pbs_api_types::{
+    Lp17VolumeStatistics, LtoDriveAndMediaStatus, LtoTapeDrive, MamAttribute, TapeDensity,
+};
 
+use crate::linux_list_drives::open_lto_tape_device;
 use crate::{
     sgutils2::{
         alloc_page_aligned_buffer, scsi_cmd_mode_select10, scsi_cmd_mode_select6, scsi_inquiry,
@@ -126,6 +129,43 @@ impl SgTape {
             info,
             encryption_key_loaded: false,
             locate_offset: None,
+        })
+    }
+
+    /// Open a tape device
+    ///
+    /// This does additional checks:
+    ///
+    /// - check if it is a non-rewinding tape device
+    /// - check if drive is ready (tape loaded)
+    /// - check block size
+    /// - for autoloader only, try to reload ejected tapes
+    pub fn open_lto_drive(config: &LtoTapeDrive) -> Result<Self, Error> {
+        proxmox_lang::try_block!({
+            let file = open_lto_tape_device(&config.path)?;
+
+            let mut handle = SgTape::new(file)?;
+
+            if handle.test_unit_ready().is_err() {
+                // for autoloader only, try to reload ejected tapes
+                if config.changer.is_some() {
+                    let _ = handle.load(); // just try, ignore error
+                }
+            }
+
+            handle.wait_until_ready(None)?;
+
+            handle.set_default_options()?;
+
+            Ok(handle)
+        })
+        .map_err(|err: Error| {
+            format_err!(
+                "open drive '{}' ({}) failed - {}",
+                config.name,
+                config.path,
+                err
+            )
         })
     }
 
