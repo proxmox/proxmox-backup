@@ -12,6 +12,7 @@ mod encryption;
 pub use encryption::{drive_set_encryption, has_encryption};
 
 mod volume_statistics;
+use proxmox_uuid::Uuid;
 pub use volume_statistics::*;
 
 mod tape_alert_flags;
@@ -641,7 +642,26 @@ impl SgTape {
         read_volume_statistics(&mut self.file)
     }
 
-    pub fn set_encryption(&mut self, key: Option<[u8; 32]>) -> Result<(), Error> {
+    pub fn set_encryption(&mut self, key_data: Option<([u8; 32], Uuid)>) -> Result<(), Error> {
+        let key = if let Some((ref key, ref uuid)) = key_data {
+            // derive specialized key for each media-set
+
+            let mut tape_key = [0u8; 32];
+
+            let uuid_bytes: [u8; 16] = *uuid.as_bytes();
+
+            openssl::pkcs5::pbkdf2_hmac(
+                key,
+                &uuid_bytes,
+                10,
+                openssl::hash::MessageDigest::sha256(),
+                &mut tape_key,
+            )?;
+
+            Some(tape_key)
+        } else {
+            None
+        };
         self.encryption_key_loaded = key.is_some();
 
         drive_set_encryption(&mut self.file, key)

@@ -267,31 +267,13 @@ impl TapeDriver for LtoTapeHandle {
         key_fingerprint: Option<(Fingerprint, Uuid)>,
     ) -> Result<(), Error> {
         if nix::unistd::Uid::effective().is_root() {
-            if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
-                let (key_map, _digest) = crate::tape::encryption_keys::load_keys()?;
-                match key_map.get(key_fingerprint) {
-                    Some(item) => {
-                        // derive specialized key for each media-set
-
-                        let mut tape_key = [0u8; 32];
-
-                        let uuid_bytes: [u8; 16] = *uuid.as_bytes();
-
-                        openssl::pkcs5::pbkdf2_hmac(
-                            &item.key,
-                            &uuid_bytes,
-                            10,
-                            openssl::hash::MessageDigest::sha256(),
-                            &mut tape_key,
-                        )?;
-
-                        return self.sg_tape.set_encryption(Some(tape_key));
-                    }
-                    None => bail!("unknown tape encryption key '{}'", key_fingerprint),
-                }
+            let key_data = if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
+                let key = crate::tape::encryption_keys::load_key(key_fingerprint)?;
+                Some((key, uuid.clone()))
             } else {
-                return self.sg_tape.set_encryption(None);
-            }
+                None
+            };
+            return self.sg_tape.set_encryption(key_data);
         }
 
         let output = if let Some((fingerprint, uuid)) = key_fingerprint {
