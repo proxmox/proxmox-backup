@@ -1,3 +1,66 @@
+rust-proxmox-backup (3.1.3-1) bookworm; urgency=medium
+
+  * improve efficiency of detecting if a block device is a partition
+
+  * acme: api: add option for external account binding to account registration
+    endpoint
+
+  * ui: datastore summary handle non-existent 'avail' and 'used' status values
+
+  * tape: allow configuring the time out for "wait until ready" to better cope
+    with the long initialization duration that happens on the first use of
+    LTO 9+ tapes
+
+  * tape: improve error on decode element status page
+
+  * tape: improve LTO 9 compatibility
+
+  * fix #4904: tape changer: add option to explicitly eject the tape before
+    unloading it
+
+  * docs: tape: replace use of 'export-media' with correct 'export-media-set'
+    option
+
+  * docs: tape: add LTO 9 considerations
+
+  * fix #5117: ui: node info: avoid invalid array access for certain foreign
+    kernels
+
+  * d/control: explicitly depend on gdisk package to ensure it's available
+    when installing on top of a plain Debian installation
+
+  * tape: work around buggy changer implementations when reading the element
+    status
+
+  * system report: include prune.cfg
+
+  * fix #4315: jobs: modify GroupFilter so include/exclude is tracked
+
+  * ui: show if Filter includes or excludes
+
+  * datastore: add additional context for a parsing error when getting the
+    owner of a backup group
+
+  * api: tape: optionally accept uuid for destroying or moving a media, so
+    that one can uniquely identify existing tapes with duplicate labels.
+
+  * api: tape: don't allow duplicate media label-texts anymore
+
+  * ui: tape inventory: use uuid as id
+
+  * ui: tape: add button to remove a medium from the inventory, while not
+    touching the data
+
+  * api: custom certificate upload: make key optional and use the existing
+    key, if it's not specified.
+
+  * close #4819: ui: allow usernames shorter than 4 characters
+
+  * tape: rework on-drive encryption key handling and ensure this key does not
+    gets unloaded to early
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Jan 2024 15:20:45 +0100
+
 rust-proxmox-backup (3.1.2-1) bookworm; urgency=medium
 
   * sync: fix recent regression with recursive remote sync
