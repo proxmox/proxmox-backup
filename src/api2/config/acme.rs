@@ -489,9 +489,11 @@ pub struct PluginConfig {
     ty: String,
 
     /// DNS Api name.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     api: Option<String>,
 
     /// Plugin configuration data.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     data: Option<String>,
 
     /// Extra delay in seconds to wait before requesting validation.
