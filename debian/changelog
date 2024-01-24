@@ -1,3 +1,21 @@
+rust-proxmox-backup (2.4.5-1) bullseye; urgency=medium
+
+  * pbs2to3: add check for dkms modules
+
+  * pbs2to3: check for proper grub meta-package for bootmode
+
+  * system report: switch to markdown-like output syntax to make it easier to
+    digest
+
+  * system report: add information about block devices, basic uptime, usage
+    and process info, all apt repo files, proxmox-boot-tool status output, and
+    ldap and oidc realm list and prune configuration
+
+  * tape: rework on-drive encryption key handling and ensure this key does not
+    gets unloaded to early
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 24 Jan 2024 13:32:38 +0100
+
 rust-proxmox-backup (2.4.4-1) bullseye; urgency=medium
 
   * pbs2to3: fix boot-mode detection
