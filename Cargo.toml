@@ -43,7 +43,6 @@ members = [
     "proxmox-backup-client",
     "proxmox-file-restore",
     "proxmox-restore-daemon",
-    "proxmox-rrd",
 
     "pxar-bin",
 ]
@@ -70,6 +69,7 @@ proxmox-openid = "0.10.0"
 proxmox-rest-server = { version = "0.5.1", features = [ "templates" ] }
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "2.0.0", default_features = false }
+proxmox-rrd = { version = "0.1" }
 # everything but pbs-config and pbs-client use "api-macro"
 proxmox-schema = "2.0.0"
 proxmox-section-config = "2"
@@ -98,7 +98,6 @@ pbs-key-config = { path = "pbs-key-config" }
 pbs-pxar-fuse = { path = "pbs-pxar-fuse" }
 pbs-tape = { path = "pbs-tape" }
 pbs-tools = { path = "pbs-tools" }
-proxmox-rrd = { path = "proxmox-rrd" }
 
 # regular crates
 anyhow = "1.0"
@@ -260,6 +259,7 @@ proxmox-rrd.workspace = true
 #proxmox-openid = { path = "../proxmox/proxmox-openid" }
 #proxmox-rest-server = { path = "../proxmox/proxmox-rest-server" }
 #proxmox-router = { path = "../proxmox/proxmox-router" }
+#proxmox-rrd = { path = "../proxmox/proxmox-rrd" }
 #proxmox-schema = { path = "../proxmox/proxmox-schema" }
 #proxmox-section-config = { path = "../proxmox/proxmox-section-config" }
 #proxmox-serde = { path = "../proxmox/proxmox-serde" }

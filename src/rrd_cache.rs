@@ -9,8 +9,8 @@ use std::path::Path;
 use anyhow::{format_err, Error};
 use once_cell::sync::OnceCell;
 
-use proxmox_rrd::rrd::{CF, DST, RRD};
-use proxmox_rrd::RRDCache;
+use proxmox_rrd::rrd::{AggregationFn, DataSourceType, Database};
+use proxmox_rrd::Cache;
 use proxmox_sys::fs::CreateOptions;
 
 use pbs_api_types::{RRDMode, RRDTimeFrame};
@@ -18,10 +18,10 @@ use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 
 const RRD_CACHE_BASEDIR: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/rrdb");
 
-static RRD_CACHE: OnceCell<RRDCache> = OnceCell::new();
+static RRD_CACHE: OnceCell<Cache> = OnceCell::new();
 
 /// Get the RRD cache instance
-pub fn get_rrd_cache() -> Result<&'static RRDCache, Error> {
+pub fn get_rrd_cache() -> Result<&'static Cache, Error> {
     RRD_CACHE
         .get()
         .ok_or_else(|| format_err!("RRD cache not initialized!"))
@@ -30,7 +30,7 @@ pub fn get_rrd_cache() -> Result<&'static RRDCache, Error> {
 /// Initialize the RRD cache instance
 ///
 /// Note: Only a single process must do this (proxmox-backup-proxy)
-pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
+pub fn initialize_rrd_cache() -> Result<&'static Cache, Error> {
     let backup_user = pbs_config::backup_user()?;
 
     let file_options = CreateOptions::new()
@@ -43,7 +43,7 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
 
     let apply_interval = 30.0 * 60.0; // 30 minutes
 
-    let cache = RRDCache::new(
+    let cache = Cache::new(
         RRD_CACHE_BASEDIR,
         Some(file_options),
         Some(dir_options),
@@ -58,8 +58,8 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
     Ok(RRD_CACHE.get().unwrap())
 }
 
-fn load_callback(path: &Path, _rel_path: &str, dst: DST) -> RRD {
-    match RRD::load(path, true) {
+fn load_callback(path: &Path, _rel_path: &str, dst: DataSourceType) -> Database {
+    match Database::load(path, true) {
         Ok(rrd) => rrd,
         Err(err) => {
             if err.kind() != std::io::ErrorKind::NotFound {
@@ -69,7 +69,7 @@ fn load_callback(path: &Path, _rel_path: &str, dst: DST) -> RRD {
                     err
                 );
             }
-            RRDCache::create_proxmox_backup_default_rrd(dst)
+            Cache::create_proxmox_backup_default_rrd(dst)
         }
     }
 }
@@ -93,8 +93,8 @@ pub fn extract_rrd_data(
     };
 
     let cf = match mode {
-        RRDMode::Max => CF::Maximum,
-        RRDMode::Average => CF::Average,
+        RRDMode::Max => AggregationFn::Maximum,
+        RRDMode::Average => AggregationFn::Average,
     };
 
     let rrd_cache = get_rrd_cache()?;
@@ -114,7 +114,7 @@ pub fn rrd_sync_journal() {
 pub fn rrd_update_gauge(name: &str, value: f64) {
     if let Ok(rrd_cache) = get_rrd_cache() {
         let now = proxmox_time::epoch_f64();
-        if let Err(err) = rrd_cache.update_value(name, now, value, DST::Gauge) {
+        if let Err(err) = rrd_cache.update_value(name, now, value, DataSourceType::Gauge) {
             log::error!("rrd::update_value '{}' failed - {}", name, err);
         }
     }
@@ -124,7 +124,7 @@ pub fn rrd_update_gauge(name: &str, value: f64) {
 pub fn rrd_update_derive(name: &str, value: f64) {
     if let Ok(rrd_cache) = get_rrd_cache() {
         let now = proxmox_time::epoch_f64();
-        if let Err(err) = rrd_cache.update_value(name, now, value, DST::Derive) {
+        if let Err(err) = rrd_cache.update_value(name, now, value, DataSourceType::Derive) {
             log::error!("rrd::update_value '{}' failed - {}", name, err);
         }
     }
