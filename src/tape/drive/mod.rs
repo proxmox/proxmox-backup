@@ -105,11 +105,13 @@ pub trait TapeDriver {
         key_config: Option<&KeyConfig>,
     ) -> Result<(), Error>;
 
-    /// Read the media label
+    /// Read the media label without setting the encryption key
     ///
-    /// This tries to read both media labels (label and
-    /// media_set_label). Also returns the optional encryption key configuration.
-    fn read_label(&mut self) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
+    /// This is used internally by 'read_label' and when restoring the encryption
+    /// key from the drive. Should not be used or overwritten otherwise!
+    fn read_label_without_loading_key(
+        &mut self,
+    ) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
         self.rewind()?;
 
         let label = {
@@ -182,18 +184,34 @@ pub trait TapeDriver {
             bail!("got unexpected data after media set label");
         }
 
-        drop(reader);
-
-        let encrypt_fingerprint = media_set_label
-            .encryption_key_fingerprint
-            .clone()
-            .map(|fp| (fp, media_set_label.uuid.clone()));
-
-        self.set_encryption(encrypt_fingerprint)?;
-
         media_id.media_set_label = Some(media_set_label);
 
         Ok((Some(media_id), key_config))
+    }
+
+    /// Read the media label
+    ///
+    /// This tries to read both media labels (label and
+    /// media_set_label). Also returns the optional encryption key configuration.
+    ///
+    /// Automatically sets the encryption key on the drive
+    fn read_label(&mut self) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
+        let (media_id, key_config) = self.read_label_without_loading_key()?;
+
+        let encrypt_fingerprint = if let Some(media_set_label) =
+            media_id.as_ref().and_then(|id| id.media_set_label.clone())
+        {
+            media_set_label
+                .encryption_key_fingerprint
+                .clone()
+                .map(|fp| (fp, media_set_label.uuid.clone()))
+        } else {
+            None
+        };
+
+        self.set_encryption(encrypt_fingerprint)?;
+
+        Ok((media_id, key_config))
     }
 
     /// Eject media

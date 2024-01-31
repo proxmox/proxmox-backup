@@ -609,7 +609,7 @@ pub async fn restore_key(drive: String, password: String) -> Result<(), Error> {
     run_drive_blocking_task(drive.clone(), "restore key".to_string(), move |config| {
         let mut drive = open_drive(&config, &drive)?;
 
-        let (_media_id, key_config) = drive.read_label()?;
+        let (_media_id, key_config) = drive.read_label_without_loading_key()?;
 
         if let Some(key_config) = key_config {
             let password_fn = || Ok(password.as_bytes().to_vec());
