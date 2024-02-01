@@ -1,3 +1,11 @@
+rust-proxmox-backup (2.4.6-1) bullseye; urgency=medium
+
+  * tape: fix regression in restoring an encryption key from medium, avoid
+    trying to load the key to the drive, which cannot work in this special
+    case.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 01 Feb 2024 16:32:22 +0100
+
 rust-proxmox-backup (2.4.5-1) bullseye; urgency=medium
 
   * pbs2to3: add check for dkms modules
