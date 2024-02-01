@@ -198,16 +198,7 @@ pub trait TapeDriver {
     fn read_label(&mut self) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
         let (media_id, key_config) = self.read_label_without_loading_key()?;
 
-        let encrypt_fingerprint = if let Some(media_set_label) =
-            media_id.as_ref().and_then(|id| id.media_set_label.clone())
-        {
-            media_set_label
-                .encryption_key_fingerprint
-                .clone()
-                .map(|fp| (fp, media_set_label.uuid.clone()))
-        } else {
-            None
-        };
+        let encrypt_fingerprint = media_id.as_ref().and_then(|id| id.get_encryption_fp());
 
         self.set_encryption(encrypt_fingerprint)?;
 
