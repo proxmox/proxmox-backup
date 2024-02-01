@@ -44,12 +44,14 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
     }
 }
 
-pub struct BackupLockGuard(Option<std::fs::File>);
+pub struct BackupLockGuard {
+    _file: Option<std::fs::File>,
+}
 
 #[doc(hidden)]
 /// Note: do not use for production code, this is only intended for tests
 pub unsafe fn create_mocked_lock() -> BackupLockGuard {
-    BackupLockGuard(None)
+    BackupLockGuard { _file: None }
 }
 
 /// Open or create a lock file owned by user "backup" and lock it.
@@ -73,7 +75,7 @@ pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
     let timeout = timeout.unwrap_or(std::time::Duration::new(10, 0));
 
     let file = proxmox_sys::fs::open_file_locked(&path, timeout, exclusive, options)?;
-    Ok(BackupLockGuard(Some(file)))
+    Ok(BackupLockGuard { _file: Some(file) })
 }
 
 /// Atomically write data to file owned by "root:backup" with permission "0640"

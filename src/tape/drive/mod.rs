@@ -592,7 +592,9 @@ fn tape_device_path(config: &SectionConfigData, drive: &str) -> Result<String, E
     }
 }
 
-pub struct DeviceLockGuard(std::fs::File);
+pub struct DeviceLockGuard {
+    _file: std::fs::File,
+}
 
 // Uses systemd escape_unit to compute a file name from `device_path`, the try
 // to lock `/var/lock/<name>`.
@@ -630,7 +632,7 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError>
         }
     }
 
-    Ok(DeviceLockGuard(file))
+    Ok(DeviceLockGuard { _file: file })
 }
 
 // Same logic as lock_device_path, but uses a timeout of 0, making it
