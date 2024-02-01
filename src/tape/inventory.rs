@@ -33,7 +33,7 @@ use serde_json::json;
 use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions};
 use proxmox_uuid::Uuid;
 
-use pbs_api_types::{MediaLocation, MediaSetPolicy, MediaStatus, RetentionPolicy};
+use pbs_api_types::{Fingerprint, MediaLocation, MediaSetPolicy, MediaStatus, RetentionPolicy};
 use pbs_config::BackupLockGuard;
 
 #[cfg(not(test))]
@@ -70,6 +70,10 @@ impl MediaId {
             return Some(set.pool.to_owned());
         }
         self.label.pool.to_owned()
+    }
+    pub(crate) fn get_encryption_fp(&self) -> Option<(Fingerprint, Uuid)> {
+        let label = self.clone().media_set_label?;
+        label.encryption_key_fingerprint.map(|fp| (fp, label.uuid))
     }
 }
 
