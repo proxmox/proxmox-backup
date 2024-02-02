@@ -42,6 +42,7 @@ fn verify_all_of_schema(schema: &AllOfSchema) -> Result<(), Error> {
         match entry {
             Schema::Object(obj) => verify_object_schema(obj)?,
             Schema::AllOf(allof) => verify_all_of_schema(allof)?,
+            Schema::OneOf(oneof) => verify_one_of_schema(oneof)?,
             _ => bail!("AllOf schema with a non-object schema entry!"),
         }
     }
@@ -63,6 +64,19 @@ fn verify_all_of_schema(schema: &AllOfSchema) -> Result<(), Error> {
     Ok(())
 }
 
+fn verify_one_of_schema(schema: &OneOfSchema) -> Result<(), Error> {
+    for (_name, entry) in schema.list {
+        match entry {
+            Schema::Object(obj) => verify_object_schema(obj)?,
+            Schema::AllOf(allof) => verify_all_of_schema(allof)?,
+            Schema::OneOf(oneof) => verify_one_of_schema(oneof)?,
+            _ => bail!("OneOf schema with a non-object schema entry!"),
+        }
+    }
+
+    Ok(())
+}
+
 fn verify_schema(schema: &Schema) -> Result<(), Error> {
     match schema {
         Schema::Object(obj_schema) => {
@@ -70,6 +84,9 @@ fn verify_schema(schema: &Schema) -> Result<(), Error> {
         }
         Schema::AllOf(all_of_schema) => {
             verify_all_of_schema(all_of_schema)?;
+        }
+        Schema::OneOf(one_of_schema) => {
+            verify_one_of_schema(one_of_schema)?;
         }
         Schema::Array(arr_schema) => {
             verify_schema(arr_schema.items)?;
@@ -108,6 +125,10 @@ fn verify_api_method(method: &str, path: &str, info: &ApiMethod) -> Result<(), E
         }
         ParameterSchema::AllOf(all_of) => {
             verify_all_of_schema(all_of)
+                .map_err(|err| format_err!("{} {} parameters: {}", method, path, err))?;
+        }
+        ParameterSchema::OneOf(one_of) => {
+            verify_one_of_schema(one_of)
                 .map_err(|err| format_err!("{} {} parameters: {}", method, path, err))?;
         }
     }
