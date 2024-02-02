@@ -71,7 +71,7 @@ proxmox-rest-server = { version = "0.5.1", features = [ "templates" ] }
 proxmox-router = { version = "2.0.0", default_features = false }
 proxmox-rrd = { version = "0.1" }
 # everything but pbs-config and pbs-client use "api-macro"
-proxmox-schema = "2.0.0"
+proxmox-schema = "3"
 proxmox-section-config = "2"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
