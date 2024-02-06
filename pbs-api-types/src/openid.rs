@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, ApiStringFormat, ArraySchema, Schema, StringSchema, Updater};
 
 use super::{
-    PROXMOX_SAFE_ID_FORMAT, PROXMOX_SAFE_ID_REGEX, REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
+    GENERIC_URI_REGEX, PROXMOX_SAFE_ID_FORMAT, PROXMOX_SAFE_ID_REGEX, REALM_ID_SCHEMA,
+    SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 pub const OPENID_SCOPE_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
@@ -24,11 +25,11 @@ pub const OPENID_SCOPE_LIST_SCHEMA: Schema = StringSchema::new("OpenID Scope Lis
     .default(OPENID_DEFAILT_SCOPE_LIST)
     .schema();
 
-pub const OPENID_ACR_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+pub const OPENID_ACR_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&GENERIC_URI_REGEX);
 
 pub const OPENID_ACR_SCHEMA: Schema =
     StringSchema::new("OpenID Authentication Context Class Reference.")
-        .format(&OPENID_SCOPE_FORMAT)
+        .format(&OPENID_ACR_FORMAT)
         .schema();
 
 pub const OPENID_ACR_ARRAY_SCHEMA: Schema =

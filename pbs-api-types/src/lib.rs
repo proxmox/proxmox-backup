@@ -178,6 +178,11 @@ const_regex! {
     /// any identifier command line tools work with.
     pub PROXMOX_SAFE_ID_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 
+    /// Regex that (loosely) matches URIs according to [RFC 2396](https://www.rfc-editor.org/rfc/rfc2396.txt)
+    /// This does not completely match a URI, but rather disallows all the prohibited characters
+    /// specified in the RFC.
+    pub GENERIC_URI_REGEX = r#"^[^\x00-\x1F\x7F <>#"]*$"#;
+
     pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 
     pub MULTI_LINE_COMMENT_REGEX = r"(?m)^([[:^cntrl:]]*)$";
