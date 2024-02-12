@@ -75,7 +75,7 @@ impl TryFrom<Vec<String>> for NamespaceMap {
             let max_depth = mapping.max_depth.unwrap_or(MAX_NAMESPACE_DEPTH);
 
             let ns_map: &mut HashMap<BackupNamespace, (BackupNamespace, usize)> =
-                map.entry(mapping.store).or_insert_with(HashMap::new);
+                map.entry(mapping.store).or_default();
 
             if ns_map.insert(source, (target, max_depth)).is_some() {
                 bail!("duplicate mapping found");
@@ -747,7 +747,7 @@ fn restore_list_worker(
 
             let file_list = snapshot_file_hash
                 .entry(media_id.label.uuid.clone())
-                .or_insert_with(Vec::new);
+                .or_default();
             file_list.push(file_num);
 
             task_log!(
@@ -808,10 +808,8 @@ fn restore_list_worker(
                 // we only want to restore chunks that we do not have yet
                 if !datastore.cond_touch_chunk(&digest, false)? {
                     if let Some((uuid, nr)) = catalog.lookup_chunk(&source_datastore, &digest) {
-                        let file = media_file_chunk_map
-                            .entry(uuid.clone())
-                            .or_insert_with(BTreeMap::new);
-                        let chunks = file.entry(nr).or_insert_with(HashSet::new);
+                        let file = media_file_chunk_map.entry(uuid.clone()).or_default();
+                        let chunks = file.entry(nr).or_default();
                         chunks.insert(digest);
                     }
                 }
@@ -1089,9 +1087,7 @@ fn restore_snapshots_to_tmpdir(
                 );
                 std::fs::create_dir_all(&tmp_path)?;
 
-                let chunks = chunks_list
-                    .entry(source_datastore)
-                    .or_insert_with(HashSet::new);
+                let chunks = chunks_list.entry(source_datastore).or_default();
                 let manifest =
                     try_restore_snapshot_archive(worker.clone(), &mut decoder, &tmp_path)?;
 
