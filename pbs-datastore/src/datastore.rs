@@ -1022,7 +1022,7 @@ impl DataStore {
     }
 
     pub fn garbage_collection_running(&self) -> bool {
-        !matches!(self.inner.gc_mutex.try_lock(), Ok(_))
+        self.inner.gc_mutex.try_lock().is_err()
     }
 
     pub fn garbage_collection(

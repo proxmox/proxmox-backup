@@ -337,7 +337,7 @@ pub fn update_ldap_realm(
         config.user_classes = Some(user_classes);
     }
 
-    let ldap_config = if let Some(_) = password {
+    let ldap_config = if password.is_some() {
         LdapAuthenticator::api_type_to_config_with_password(&config, password.clone())?
     } else {
         LdapAuthenticator::api_type_to_config(&config)?
