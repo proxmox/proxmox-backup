@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, Write};
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 
@@ -795,7 +795,7 @@ impl MediaCatalog {
         let mut media_set_uuid = None;
 
         loop {
-            let pos = file.seek(SeekFrom::Current(0))?; // get current pos
+            let pos = file.stream_position()?; // get current pos
 
             if pos == 0 {
                 // read/check magic number
