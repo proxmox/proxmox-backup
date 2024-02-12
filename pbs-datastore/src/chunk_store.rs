@@ -322,7 +322,7 @@ impl ChunkStore {
                         // start reading:
                         continue;
                     }
-                    Err(ref err) if err == &nix::errno::Errno::ENOENT => {
+                    Err(nix::errno::Errno::ENOENT) => {
                         // non-existing directories are okay, just keep going:
                         continue;
                     }

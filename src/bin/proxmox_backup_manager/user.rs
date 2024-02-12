@@ -16,7 +16,7 @@ fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
         return Ok(never);
     }
     let text = match value.as_i64() {
-        Some(epoch) if epoch == 0 => never,
+        Some(0) => never,
         Some(epoch) => {
             if let Ok(epoch_string) = proxmox_time::strftime_local("%c", epoch) {
                 epoch_string
