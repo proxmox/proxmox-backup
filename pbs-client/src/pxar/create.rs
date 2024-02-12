@@ -222,9 +222,9 @@ impl Archiver {
         }
     }
 
-    fn archive_dir_contents<'a, 'b, T: SeqWrite + Send>(
+    fn archive_dir_contents<'a, T: SeqWrite + Send>(
         &'a mut self,
-        encoder: &'a mut Encoder<'b, T>,
+        encoder: &'a mut Encoder<'_, T>,
         mut dir: Dir,
         is_root: bool,
     ) -> BoxFuture<'a, Result<(), Error>> {
