@@ -132,11 +132,15 @@ async fn create_namespace(param: Value) -> Result<(), Error> {
                 type: BackupNamespace,
                 optional: true,
             },
+            "delete-groups": {
+                description: "Destroys all groups in the hierarchy.",
+                optional: true,
+            },
         }
     },
 )]
 /// Delete an existing namespace.
-async fn delete_namespace(param: Value) -> Result<(), Error> {
+async fn delete_namespace(param: Value, delete_groups: Option<bool>) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let backup_ns = optional_ns_param(&param)?;
 
@@ -145,7 +149,11 @@ async fn delete_namespace(param: Value) -> Result<(), Error> {
     }
 
     let path = format!("api2/json/admin/datastore/{}/namespace", repo.store());
-    let param = json!({ "ns": backup_ns });
+    let mut param = json!({ "ns": backup_ns });
+
+    if let Some(dg) = delete_groups {
+        param["delete-groups"] = serde_json::to_value(dg)?;
+    }
 
     let client = connect(&repo)?;
 
