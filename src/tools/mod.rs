@@ -44,7 +44,7 @@ pub fn detect_modified_configuration_file(
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
 pub const DEFAULT_USER_AGENT_STRING: &str = "proxmox-backup-client/1.0";
 
-/// Returns a new instance of [`Client`](proxmox_http::client::Client) configured for PBS usage.
+/// Returns a new instance of [`Client`] configured for PBS usage.
 pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> Client {
     let options = HttpOptions {
         proxy_config,

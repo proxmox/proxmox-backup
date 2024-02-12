@@ -198,7 +198,7 @@ impl AclTreeNode {
     }
 
     /// Returns applicable [Role] and their propagation status for a given
-    /// [Authid](pbs_api_types::Authid).
+    /// [Authid].
     ///
     /// If the `Authid` is a [User](pbs_api_types::User) that has no specific `Roles` configured on
     /// this node, applicable `Group` roles will be returned instead.
