@@ -13,8 +13,6 @@ pub struct MediaSet {
 }
 
 impl MediaSet {
-    pub const MEDIA_SET_MAX_SEQ_NR: u64 = 100;
-
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let uuid = Uuid::generate();
@@ -41,14 +39,6 @@ impl MediaSet {
     }
 
     pub fn insert_media(&mut self, uuid: Uuid, seq_nr: u64) -> Result<(), Error> {
-        if seq_nr > Self::MEDIA_SET_MAX_SEQ_NR {
-            bail!(
-                "media set sequence number to large in media set {} ({} > {})",
-                self.uuid.to_string(),
-                seq_nr,
-                Self::MEDIA_SET_MAX_SEQ_NR
-            );
-        }
         let seq_nr = seq_nr as usize;
         if self.media_list.len() > seq_nr {
             if self.media_list[seq_nr].is_some() {

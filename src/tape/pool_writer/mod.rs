@@ -32,6 +32,10 @@ use super::file_formats::{
     PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1,
 };
 
+// Warn when the sequence number reaches this limit, as large
+// media sets are error prone and take a very long time to restore from.
+const MEDIA_SET_SEQ_NR_WARN_LIMIT: u64 = 20;
+
 struct PoolWriterState {
     drive: Box<dyn TapeDriver>,
     // Media Uuid from loaded media
@@ -271,6 +275,14 @@ impl PoolWriter {
         self.catalog_set.lock().unwrap().append_catalog(catalog)?;
 
         let media_set = media.media_set_label().unwrap();
+
+        if is_new_media && media_set.seq_nr >= MEDIA_SET_SEQ_NR_WARN_LIMIT {
+            task_warn!(
+                worker,
+                "large media-set detected ({}), consider using a different allocation policy",
+                media_set.seq_nr
+            );
+        }
 
         drive.assert_encryption_mode(media_set.encryption_key_fingerprint.is_some())?;
 
