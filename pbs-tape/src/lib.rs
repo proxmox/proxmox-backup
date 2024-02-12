@@ -281,7 +281,7 @@ impl MtxStatus {
         // (are there changers exposing more than one?)
         // defaults to 0 for changer that do not report transports
         self.transports
-            .get(0)
+            .first()
             .map(|t| t.element_address)
             .unwrap_or(0u16)
     }

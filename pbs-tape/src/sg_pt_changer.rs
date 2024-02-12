@@ -850,7 +850,7 @@ mod test {
             .map(|desc| build_storage_descriptor(desc, trailing))
             .collect();
 
-        let (desc_len, address) = if let Some(el) = descs.get(0) {
+        let (desc_len, address) = if let Some(el) = descs.first() {
             (el.len() as u16, descriptors[0].address)
         } else {
             (0u16, 0u16)

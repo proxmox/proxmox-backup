@@ -170,7 +170,7 @@ impl LdapRealmSyncJob {
                             "userid attribute `{user_id_attribute}` not in LDAP search result"
                         )
                     })?
-                    .get(0)
+                    .first()
                     .context("userid attribute array is empty")?
                     .clone();
 
@@ -233,7 +233,7 @@ impl LdapRealmSyncJob {
         existing_user: Option<&User>,
     ) -> User {
         let lookup = |attribute: &str, ldap_attribute: Option<&String>, schema: &'static Schema| {
-            let value = result.attributes.get(ldap_attribute?)?.get(0)?;
+            let value = result.attributes.get(ldap_attribute?)?.first()?;
             let schema = schema.unwrap_string_schema();
 
             if let Err(e) = schema.check_constraints(value) {
