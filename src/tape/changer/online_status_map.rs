@@ -88,7 +88,7 @@ impl OnlineStatusMap {
 }
 
 fn insert_into_online_set(inventory: &Inventory, label_text: &str, online_set: &mut HashSet<Uuid>) {
-    match inventory.find_media_by_label_text(&label_text) {
+    match inventory.find_media_by_label_text(label_text) {
         Ok(Some(media_id)) => {
             online_set.insert(media_id.label.uuid.clone());
         }

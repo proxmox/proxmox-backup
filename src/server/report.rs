@@ -190,7 +190,7 @@ pub fn generate_report() -> String {
                 .map(|file_name| {
                     let path = Path::new(file_name);
                     if path.is_dir() {
-                        get_directory_content(&path)
+                        get_directory_content(path)
                     } else {
                         get_file_content(file_name)
                     }

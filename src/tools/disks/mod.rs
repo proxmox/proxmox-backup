@@ -1167,7 +1167,7 @@ pub fn wipe_blockdev(disk: &Disk, worker: Arc<WorkerTask>) -> Result<(), Error> 
 
     if is_partition {
         // set the partition type to 0x83 'Linux filesystem'
-        change_parttype(&disk, "8300", worker)?;
+        change_parttype(disk, "8300", worker)?;
     }
 
     Ok(())

@@ -199,7 +199,7 @@ impl PullSource for RemoteSource {
         });
 
         if !namespace.is_root() {
-            args["ns"] = serde_json::to_value(&namespace)?;
+            args["ns"] = serde_json::to_value(namespace)?;
         }
 
         self.client.login().await?;
@@ -230,7 +230,7 @@ impl PullSource for RemoteSource {
     }
 
     fn get_store(&self) -> &str {
-        &self.repo.store()
+        self.repo.store()
     }
 
     async fn reader(
