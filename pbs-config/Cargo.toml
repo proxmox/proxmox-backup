@@ -7,7 +7,6 @@ description = "Configuration file management for PBS"
 
 [dependencies]
 anyhow.workspace = true
-hex.workspace = true
 lazy_static.workspace = true
 libc.workspace = true
 nix.workspace = true
