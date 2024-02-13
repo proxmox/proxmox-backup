@@ -126,9 +126,8 @@ fn get_directory_content(path: impl AsRef<Path>) -> String {
         Ok(iter) => iter,
         Err(err) => {
             return format!(
-                "`$ cat '{}*'`\n```\n# read dir failed - {}\n```",
+                "`$ cat '{}*'`\n```\n# read dir failed - {err}\n```",
                 path.as_ref().display(),
-                err.to_string(),
             );
         }
     };
@@ -138,7 +137,7 @@ fn get_directory_content(path: impl AsRef<Path>) -> String {
         let entry = match entry {
             Ok(entry) => entry,
             Err(err) => {
-                let _ = writeln!(out, "error during read-dir - {}", err.to_string());
+                let _ = writeln!(out, "error during read-dir - {err}");
                 continue;
             }
         };
