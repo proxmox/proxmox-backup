@@ -871,13 +871,12 @@ async fn run_stat_generator() {
     loop {
         let delay_target = Instant::now() + Duration::from_secs(10);
 
-        let stats = match tokio::task::spawn_blocking(|| {
+        let stats_future = tokio::task::spawn_blocking(|| {
             let hoststats = collect_host_stats_sync();
             let (hostdisk, datastores) = collect_disk_stats_sync();
             Arc::new((hoststats, hostdisk, datastores))
-        })
-        .await
-        {
+        });
+        let stats = match stats_future.await {
             Ok(res) => res,
             Err(err) => {
                 log::error!("collecting host stats panicked: {err}");
