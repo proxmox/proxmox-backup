@@ -151,8 +151,8 @@ async fn delete_namespace(param: Value, delete_groups: Option<bool>) -> Result<(
     let path = format!("api2/json/admin/datastore/{}/namespace", repo.store());
     let mut param = json!({ "ns": backup_ns });
 
-    if let Some(dg) = delete_groups {
-        param["delete-groups"] = serde_json::to_value(dg)?;
+    if let Some(value) = delete_groups {
+        param["delete-groups"] = serde_json::to_value(value)?;
     }
 
     let client = connect(&repo)?;
