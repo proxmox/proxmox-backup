@@ -525,9 +525,11 @@ impl SessionImpl {
             let file = file?.decode_entry().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = file.file_name();
-            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
-                ReplyBufState::Ok => (),
-                ReplyBufState::Full => return Ok(lookups),
+            if request
+                .add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)?
+                .is_full()
+            {
+                return Ok(lookups);
             }
             lookups.push(self.make_lookup(request.inode, stat.st_ino, &file)?);
         }
@@ -537,9 +539,11 @@ impl SessionImpl {
             let file = dir.lookup_self().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = OsStr::new(".");
-            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
-                ReplyBufState::Ok => (),
-                ReplyBufState::Full => return Ok(lookups),
+            if request
+                .add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)?
+                .is_full()
+            {
+                return Ok(lookups);
             }
             lookups.push(LookupRef::clone(&dir_lookup));
         }
@@ -551,9 +555,11 @@ impl SessionImpl {
             let file = parent_dir.lookup_self().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = OsStr::new("..");
-            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
-                ReplyBufState::Ok => (),
-                ReplyBufState::Full => return Ok(lookups),
+            if request
+                .add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)?
+                .is_full()
+            {
+                return Ok(lookups);
             }
             lookups.push(lookup);
         }
@@ -619,9 +625,8 @@ impl SessionImpl {
         let xattrs = self.listxattrs(request.inode).await?;
 
         for entry in xattrs {
-            match request.add_c_string(entry.name()) {
-                ReplyBufState::Ok => (),
-                ReplyBufState::Full => return Ok(ReplyBufState::Full),
+            if request.add_c_string(entry.name()).is_full() {
+                return Ok(ReplyBufState::Full);
             }
         }
 
