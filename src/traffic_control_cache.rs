@@ -164,11 +164,8 @@ impl TrafficControlCache {
         self.last_traffic_control_generation = traffic_control_generation;
         self.last_update = now;
 
-        match self.reload_impl() {
-            Ok(()) => (),
-            Err(err) => {
-                log::error!("TrafficControlCache::reload failed -> {}", err);
-            }
+        if let Err(err) = self.reload_impl() {
+            log::error!("TrafficControlCache::reload failed -> {err}");
         }
     }
 

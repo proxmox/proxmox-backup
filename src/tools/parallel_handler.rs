@@ -80,13 +80,10 @@ impl<I: Send + 'static> ParallelHandler<I> {
                             Ok(data) => data,
                             Err(_) => return,
                         };
-                        match (handler_fn)(data) {
-                            Ok(()) => (),
-                            Err(err) => {
-                                let mut guard = abort.lock().unwrap();
-                                if guard.is_none() {
-                                    *guard = Some(err.to_string());
-                                }
+                        if let Err(err) = (handler_fn)(data) {
+                            let mut guard = abort.lock().unwrap();
+                            if guard.is_none() {
+                                *guard = Some(err.to_string());
                             }
                         }
                     })

@@ -57,12 +57,9 @@ impl NewChunksIterator {
 
                     let blob = datastore.load_chunk(&digest)?;
                     //println!("LOAD CHUNK {}", hex::encode(&digest));
-                    match tx.send(Ok(Some((digest, blob)))) {
-                        Ok(()) => {}
-                        Err(err) => {
-                            eprintln!("could not send chunk to reader thread: {}", err);
-                            break;
-                        }
+                    if let Err(err) = tx.send(Ok(Some((digest, blob)))) {
+                        eprintln!("could not send chunk to reader thread: {err}");
+                        break;
                     }
 
                     chunk_index.insert(digest);

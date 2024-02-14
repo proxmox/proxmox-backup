@@ -55,11 +55,8 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
         _ => unreachable!(),
     };
 
-    match check_acme_certificates(rpcenv).await {
-        Ok(()) => (),
-        Err(err) => {
-            log::error!("error checking certificates: {err}");
-        }
+    if let Err(err) = check_acme_certificates(rpcenv).await {
+        log::error!("error checking certificates: {err}");
     }
 
     // TODO: cleanup tasks like in PVE?

@@ -40,16 +40,13 @@ impl PxarDir {
         parent: RawFd,
         allow_existing_dirs: bool,
     ) -> Result<BorrowedFd, Error> {
-        match mkdirat(
+        if let Err(err) = mkdirat(
             parent,
             self.file_name.as_os_str(),
             perms_from_metadata(&self.metadata)?,
         ) {
-            Ok(()) => (),
-            Err(err) => {
-                if !(allow_existing_dirs && err.already_exists()) {
-                    return Err(err.into());
-                }
+            if !(allow_existing_dirs && err.already_exists()) {
+                return Err(err.into());
             }
         }
 
