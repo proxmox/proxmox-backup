@@ -352,6 +352,7 @@ fn extract(
                         device_set: None,
                         patterns,
                         skip_lost_and_found: false,
+                        skip_e2big_xattr: false,
                     };
 
                     let pxar_writer = TokioWriter::new(writer);

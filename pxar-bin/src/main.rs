@@ -335,6 +335,7 @@ async fn create_archive(
         device_set,
         patterns,
         skip_lost_and_found: false,
+        skip_e2big_xattr: false,
     };
 
     let source = PathBuf::from(source);

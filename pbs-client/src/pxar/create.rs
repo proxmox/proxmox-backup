@@ -41,6 +41,8 @@ pub struct PxarCreateOptions {
     pub entries_max: usize,
     /// Skip lost+found directory
     pub skip_lost_and_found: bool,
+    /// Skip xattrs of files that return E2BIG error
+    pub skip_e2big_xattr: bool,
 }
 
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
@@ -128,6 +130,7 @@ struct Archiver {
     device_set: Option<HashSet<u64>>,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, LinkOffset)>,
     file_copy_buffer: Vec<u8>,
+    skip_e2big_xattr: bool,
 }
 
 type Encoder<'a, T> = pxar::encoder::aio::Encoder<'a, T>;
@@ -158,6 +161,7 @@ where
         feature_flags & fs_feature_flags,
         fs_magic,
         &mut fs_feature_flags,
+        options.skip_e2big_xattr
     )
     .context("failed to get metadata for source directory")?;
 
@@ -192,6 +196,7 @@ where
         device_set,
         hardlinks: HashMap::new(),
         file_copy_buffer: vec::undefined(4 * 1024 * 1024),
+        skip_e2big_xattr: options.skip_e2big_xattr,
     };
 
     archiver
@@ -540,6 +545,7 @@ impl Archiver {
             self.flags(),
             self.fs_magic,
             &mut self.fs_feature_flags,
+            self.skip_e2big_xattr
         )?;
 
         let match_path = PathBuf::from("/").join(self.path.clone());
@@ -765,6 +771,7 @@ fn get_metadata(
     flags: Flags,
     fs_magic: i64,
     fs_feature_flags: &mut Flags,
+    skip_e2big_xattr: bool,
 ) -> Result<Metadata, Error> {
     // required for some of these
     let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
@@ -780,7 +787,7 @@ fn get_metadata(
         ..Default::default()
     };
 
-    get_xattr_fcaps_acl(&mut meta, fd, &proc_path, flags, fs_feature_flags)?;
+    get_xattr_fcaps_acl(&mut meta, fd, &proc_path, flags, fs_feature_flags, skip_e2big_xattr)?;
     get_chattr(&mut meta, fd)?;
     get_fat_attr(&mut meta, fd, fs_magic)?;
     get_quota_project_id(&mut meta, fd, flags, fs_magic)?;
@@ -818,6 +825,7 @@ fn get_xattr_fcaps_acl(
     proc_path: &Path,
     flags: Flags,
     fs_feature_flags: &mut Flags,
+    skip_e2big_xattr: bool,
 ) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_XATTRS) {
         return Ok(());
@@ -828,6 +836,14 @@ fn get_xattr_fcaps_acl(
         Err(Errno::EOPNOTSUPP) => {
             fs_feature_flags.remove(Flags::WITH_XATTRS);
             return Ok(());
+        }
+        Err(Errno::E2BIG) => {
+            match skip_e2big_xattr {
+                true => return Ok(()),
+                false => {
+                    bail!("{} (try --skip-e2big-xattr)", Errno::E2BIG.to_string());
+                }
+            };
         }
         Err(Errno::EBADF) => return Ok(()), // symlinks
         Err(err) => return Err(err).context("failed to read xattrs"),
@@ -855,6 +871,14 @@ fn get_xattr_fcaps_acl(
             Err(Errno::ENODATA) => (), // it got removed while we were iterating...
             Err(Errno::EOPNOTSUPP) => (), // shouldn't be possible so just ignore this
             Err(Errno::EBADF) => (),   // symlinks, shouldn't be able to reach this either
+            Err(Errno::E2BIG) => {
+                match skip_e2big_xattr {
+                    true => return Ok(()),
+                    false => {
+                        bail!("{} (try --skip-e2big-xattr)", Errno::E2BIG.to_string());
+                    }
+                };
+            }
             Err(err) => {
                 return Err(err).context(format!("error reading extended attribute {attr:?}"))
             }

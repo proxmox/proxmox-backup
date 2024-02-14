@@ -665,6 +665,12 @@ fn spawn_catalog_upload(
                optional: true,
                default: false,
            },
+           "skip-e2big-xattr": {
+               type: Boolean,
+               description: "Ignore the E2BIG error when retrieving xattrs. This includes the file, but discards the metadata.",
+               optional: true,
+               default: false,
+           },
        }
    }
 )]
@@ -674,6 +680,7 @@ async fn create_backup(
     all_file_systems: bool,
     skip_lost_and_found: bool,
     dry_run: bool,
+    skip_e2big_xattr: bool,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -993,6 +1000,7 @@ async fn create_backup(
                     patterns: pattern_list.clone(),
                     entries_max: entries_max as usize,
                     skip_lost_and_found,
+                    skip_e2big_xattr
                 };
 
                 let upload_options = UploadOptions {
