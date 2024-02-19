@@ -274,6 +274,7 @@ Ext.define('PBS.LoginView', {
 			    itemId: 'usernameField',
 			    reference: 'usernameField',
 			    stateId: 'login-username',
+			    inputAttrTpl: 'autocomplete=username',
 			    bind: {
 				visible: "{!openid}",
 				disabled: "{openid}",
@@ -286,6 +287,7 @@ Ext.define('PBS.LoginView', {
 			    name: 'password',
 			    itemId: 'passwordField',
 			    reference: 'passwordField',
+			    inputAttrTpl: 'autocomplete=current-password',
 			    bind: {
 				visible: "{!openid}",
 				disabled: "{openid}",
