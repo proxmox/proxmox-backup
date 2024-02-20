@@ -13,28 +13,31 @@ The following retention options are available:
   Keep the last ``<N>`` backup snapshots.
 
 ``keep-hourly <N>``
-  Keep backups for the last ``<N>`` hours. If there is more than one
-  backup for a single hour, only the latest is retained.
+  Keep backups for the last ``<N>`` hours. If there is more than one backup for
+  a single hour, only the latest is retained. Hours without backups do not
+  count.
 
 ``keep-daily <N>``
-  Keep backups for the last ``<N>`` days. If there is more than one
-  backup for a single day, only the latest is retained.
+  Keep backups for the last ``<N>`` days. If there is more than one backup for a
+  single day, only the latest is retained. Days without backups do not count.
 
 ``keep-weekly <N>``
-  Keep backups for the last ``<N>`` weeks. If there is more than one
-  backup for a single week, only the latest is retained.
+  Keep backups for the last ``<N>`` weeks. If there is more than one backup for
+  a single week, only the latest is retained. Weeks without backup do not count.
 
   .. note:: Weeks start on Monday and end on Sunday. The software
      uses the `ISO week date`_ system and handles weeks at
      the end of the year correctly.
 
 ``keep-monthly <N>``
-  Keep backups for the last ``<N>`` months. If there is more than one
-  backup for a single month, only the latest is retained.
+  Keep backups for the last ``<N>`` months. If there is more than one backup for
+  a single month, only the latest is retained. Months without backups do not
+  count.
 
 ``keep-yearly <N>``
-  Keep backups for the last ``<N>`` years. If there is more than one
-  backup for a single year, only the latest is retained.
+  Keep backups for the last ``<N>`` years. If there is more than one backup for
+  a single year, only the latest is retained. Years without backups do not
+  count.
 
 The retention options are processed in the order given above. Each option
 only covers backups within its time period. The next option does not take care

@@ -82,13 +82,13 @@ available:</p>
 <dd>Keep the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> backup snapshots.</dd>
 <dt><code class="docutils literal notranslate"><span class="pre">keep-hourly</span> <span class="pre">&lt;N&gt;</span></code></dt>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> hours. If there is more than one
-backup for a single hour, only the latest is kept.</dd>
+backup for a single hour, only the latest is kept. Hours without backups do not count.</dd>
 <dt><code class="docutils literal notranslate"><span class="pre">keep-daily</span> <span class="pre">&lt;N&gt;</span></code></dt>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> days. If there is more than one
-backup for a single day, only the latest is kept.</dd>
+backup for a single day, only the latest is kept. Days without backups do not count.</dd>
 <dt><code class="docutils literal notranslate"><span class="pre">keep-weekly</span> <span class="pre">&lt;N&gt;</span></code></dt>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> weeks. If there is more than one
-backup for a single week, only the latest is kept.
+backup for a single week, only the latest is kept. Weeks without backups do not count.
 <div class="last admonition note">
 <p class="note-title">Note:</p>
 <p class="last">Weeks start on Monday and end on Sunday. The software
@@ -98,10 +98,10 @@ the end of the year correctly.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">keep-monthly</span> <span class="pre">&lt;N&gt;</span></code></dt>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> months. If there is more than one
-backup for a single month, only the latest is kept.</dd>
+backup for a single month, only the latest is kept. Months without backups do not count.</dd>
 <dt><code class="docutils literal notranslate"><span class="pre">keep-yearly</span> <span class="pre">&lt;N&gt;</span></code></dt>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> years. If there is more than one
-backup for a single year, only the latest is kept.</dd>
+backup for a single year, only the latest is kept. Years without backups do not count.</dd>
 </dl>
 <p>The retention options are processed in the order given above. Each option
 only covers backups within its time period. The next option does not take care
