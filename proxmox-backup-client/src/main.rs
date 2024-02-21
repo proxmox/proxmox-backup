@@ -1000,7 +1000,7 @@ async fn create_backup(
                     patterns: pattern_list.clone(),
                     entries_max: entries_max as usize,
                     skip_lost_and_found,
-                    skip_e2big_xattr
+                    skip_e2big_xattr,
                 };
 
                 let upload_options = UploadOptions {

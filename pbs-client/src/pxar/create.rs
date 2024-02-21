@@ -161,7 +161,7 @@ where
         feature_flags & fs_feature_flags,
         fs_magic,
         &mut fs_feature_flags,
-        options.skip_e2big_xattr
+        options.skip_e2big_xattr,
     )
     .context("failed to get metadata for source directory")?;
 
@@ -545,7 +545,7 @@ impl Archiver {
             self.flags(),
             self.fs_magic,
             &mut self.fs_feature_flags,
-            self.skip_e2big_xattr
+            self.skip_e2big_xattr,
         )?;
 
         let match_path = PathBuf::from("/").join(self.path.clone());
@@ -787,7 +787,14 @@ fn get_metadata(
         ..Default::default()
     };
 
-    get_xattr_fcaps_acl(&mut meta, fd, &proc_path, flags, fs_feature_flags, skip_e2big_xattr)?;
+    get_xattr_fcaps_acl(
+        &mut meta,
+        fd,
+        &proc_path,
+        flags,
+        fs_feature_flags,
+        skip_e2big_xattr,
+    )?;
     get_chattr(&mut meta, fd)?;
     get_fat_attr(&mut meta, fd, fs_magic)?;
     get_quota_project_id(&mut meta, fd, flags, fs_magic)?;
