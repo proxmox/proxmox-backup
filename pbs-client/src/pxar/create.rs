@@ -539,15 +539,6 @@ impl Archiver {
             None => return Ok(()),
         };
 
-        let metadata = get_metadata(
-            fd.as_raw_fd(),
-            stat,
-            self.flags(),
-            self.fs_magic,
-            &mut self.fs_feature_flags,
-            self.skip_e2big_xattr,
-        )?;
-
         let match_path = PathBuf::from("/").join(self.path.clone());
         if self
             .patterns
@@ -556,6 +547,15 @@ impl Archiver {
         {
             return Ok(());
         }
+
+        let metadata = get_metadata(
+            fd.as_raw_fd(),
+            stat,
+            self.flags(),
+            self.fs_magic,
+            &mut self.fs_feature_flags,
+            self.skip_e2big_xattr,
+        )?;
 
         let file_name: &Path = OsStr::from_bytes(c_file_name.to_bytes()).as_ref();
         match metadata.file_type() {
