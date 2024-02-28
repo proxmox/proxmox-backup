@@ -321,7 +321,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    flex: 1,
 	},
 	{
-	    text: gettext('UUID'),
+	    text: 'UUID',
 	    dataIndex: 'uuid',
 	    flex: 1,
 	    hidden: true,
