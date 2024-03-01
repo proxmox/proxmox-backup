@@ -31,6 +31,7 @@ Ext.define('PBS.SystemConfiguration', {
 		},
 		{
 		    xtype: 'proxmoxNodeDNSView',
+		    deleteEmpty: true,
 		    title: gettext('DNS'),
 		    nodename: 'localhost',
 		},
