@@ -8,7 +8,8 @@ Ext.define('PBS.SubscriptionKeyEdit', {
     onlineHelp: 'get_help',
 
     items: {
-	xtype: 'textfield',
+	xtype: 'proxmoxtextfield',
+	trimValue: true,
 	labelWidth: 120,
 	name: 'key',
 	value: '',
