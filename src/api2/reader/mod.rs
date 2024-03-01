@@ -3,7 +3,7 @@
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use hex::FromHex;
-use hyper::header::{self, HeaderValue, UPGRADE};
+use hyper::header::{self, HeaderValue, CONNECTION, UPGRADE};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::Deserialize;
@@ -209,6 +209,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let response = Response::builder()
             .status(StatusCode::SWITCHING_PROTOCOLS)
+            .header(CONNECTION, HeaderValue::from_static("upgrade"))
             .header(
                 UPGRADE,
                 HeaderValue::from_static(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!()),
