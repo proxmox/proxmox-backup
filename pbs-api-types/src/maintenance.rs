@@ -77,6 +77,12 @@ pub struct MaintenanceMode {
 }
 
 impl MaintenanceMode {
+    /// Used for deciding whether the datastore is cleared from the internal cache after the last
+    /// task finishes, so all open files are closed.
+    pub fn is_offline(&self) -> bool {
+        self.ty == MaintenanceType::Offline
+    }
+
     pub fn check(&self, operation: Option<Operation>) -> Result<(), Error> {
         if self.ty == MaintenanceType::Delete {
             bail!("datastore is being deleted");

@@ -289,6 +289,16 @@ async fn run() -> Result<(), Error> {
         Ok(Value::Null)
     })?;
 
+    // clear cache entry for datastore that is in a specific maintenance mode
+    command_sock.register_command("update-datastore-cache".to_string(), |value| {
+        if let Some(name) = value.and_then(Value::as_str) {
+            if let Err(err) = DataStore::update_datastore_cache(name) {
+                log::error!("could not trigger update datastore cache: {err}");
+            }
+        }
+        Ok(Value::Null)
+    })?;
+
     let connections = proxmox_rest_server::connection::AcceptBuilder::new()
         .debug(debug)
         .rate_limiter_lookup(Arc::new(lookup_rate_limiter))

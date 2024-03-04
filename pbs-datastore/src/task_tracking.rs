@@ -91,15 +91,23 @@ pub fn get_active_operations_locked(
     Ok((data, lock.unwrap()))
 }
 
-pub fn update_active_operations(name: &str, operation: Operation, count: i64) -> Result<(), Error> {
+pub fn update_active_operations(
+    name: &str,
+    operation: Operation,
+    count: i64,
+) -> Result<ActiveOperationStats, Error> {
     let path = PathBuf::from(format!("{}/{}", crate::ACTIVE_OPERATIONS_DIR, name));
 
     let (_lock, options) = open_lock_file(name)?;
 
     let pid = std::process::id();
     let starttime = procfs::PidStat::read_from_pid(Pid::from_raw(pid as pid_t))?.starttime;
-    let mut updated = false;
 
+    let mut updated_active_operations = match operation {
+        Operation::Read => ActiveOperationStats { read: 1, write: 0 },
+        Operation::Write => ActiveOperationStats { read: 0, write: 1 },
+        Operation::Lookup => ActiveOperationStats { read: 0, write: 0 },
+    };
     let mut updated_tasks: Vec<TaskOperations> = match file_read_optional_string(&path)? {
         Some(data) => serde_json::from_str::<Vec<TaskOperations>>(&data)?
             .iter_mut()
@@ -108,12 +116,12 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
                     Some(stat) if pid == task.pid && stat.starttime != task.starttime => None,
                     Some(_) => {
                         if pid == task.pid {
-                            updated = true;
                             match operation {
                                 Operation::Read => task.active_operations.read += count,
                                 Operation::Write => task.active_operations.write += count,
                                 Operation::Lookup => (), // no IO must happen there
                             };
+                            updated_active_operations = task.active_operations;
                         }
                         Some(task.clone())
                     }
@@ -124,15 +132,11 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
         None => Vec::new(),
     };
 
-    if !updated {
+    if updated_tasks.is_empty() {
         updated_tasks.push(TaskOperations {
             pid,
             starttime,
-            active_operations: match operation {
-                Operation::Read => ActiveOperationStats { read: 1, write: 0 },
-                Operation::Write => ActiveOperationStats { read: 0, write: 1 },
-                Operation::Lookup => ActiveOperationStats { read: 0, write: 0 },
-            },
+            active_operations: updated_active_operations,
         })
     }
     replace_file(
@@ -141,4 +145,5 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
         options,
         false,
     )
+    .map(|_| updated_active_operations)
 }

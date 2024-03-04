@@ -389,7 +389,9 @@ pub fn update_datastore(
         data.tuning = update.tuning;
     }
 
+    let mut maintenance_mode_changed = false;
     if update.maintenance_mode.is_some() {
+        maintenance_mode_changed = data.maintenance_mode != update.maintenance_mode;
         data.maintenance_mode = update.maintenance_mode;
     }
 
@@ -401,6 +403,25 @@ pub fn update_datastore(
     // (e.g. going from monthly to weekly in the second week of the month)
     if gc_schedule_changed {
         jobstate::update_job_last_run_time("garbage_collection", &name)?;
+    }
+
+    // tell the proxy it might have to clear a cache entry
+    if maintenance_mode_changed {
+        tokio::spawn(async move {
+            if let Ok(proxy_pid) =
+                proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)
+            {
+                let sock = proxmox_rest_server::ctrl_sock_from_pid(proxy_pid);
+                let _ = proxmox_rest_server::send_raw_command(
+                    sock,
+                    &format!(
+                        "{{\"command\":\"update-datastore-cache\",\"args\":\"{}\"}}\n",
+                        &name
+                    ),
+                )
+                .await;
+            }
+        });
     }
 
     Ok(())
