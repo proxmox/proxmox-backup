@@ -205,14 +205,16 @@ Ext.define('PBS.window.InfluxDbUdpEdit', {
 	let me = this;
 	me.callParent();
 
-	me.load({
-	    success: function(response, options) {
-		let values = response.result.data;
-		let [_match, host, port] = /^(.*):(\d+)$/.exec(values.host) || [];
-		values.host = host;
-		values.port = port;
-		me.setValues(values);
-	    },
-	});
+	if (me.serverid) {
+	    me.load({
+		    success: function(response, options) {
+			let values = response.result.data;
+			let [_match, host, port] = /^(.*):(\d+)$/.exec(values.host) || [];
+			values.host = host;
+			values.port = port;
+			me.setValues(values);
+		    },
+	    });
+	}
     },
 });
