@@ -199,6 +199,10 @@ Ext.define('PBS.window.UserEdit', {
 	    delete values.password;
 	}
 
+	if (values.realm) {
+	    delete values.realm;
+	}
+
 	return values;
     },
 
