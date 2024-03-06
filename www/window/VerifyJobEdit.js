@@ -86,7 +86,9 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		xtype: 'pbsNamespaceMaxDepth',
 		name: 'max-depth',
 		fieldLabel: gettext('Max. Depth'),
-		deleteEmpty: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
 
