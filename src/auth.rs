@@ -15,7 +15,7 @@ use serde_json::json;
 use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
 use proxmox_auth_api::ticket::{Empty, Ticket};
 use proxmox_auth_api::types::Authid;
-use proxmox_auth_api::Keyring;
+use proxmox_auth_api::{HMACKey, Keyring};
 use proxmox_ldap::{Config, Connection, ConnectionMode};
 use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
@@ -351,7 +351,7 @@ pub fn setup_auth_context(use_private_key: bool) {
     AUTH_CONTEXT
         .set(PbsAuthContext {
             keyring,
-            csrf_secret: crate::auth_helpers::csrf_secret().to_vec(),
+            csrf_secret: crate::auth_helpers::csrf_secret(),
         })
         .map_err(drop)
         .expect("auth context setup twice");
@@ -369,7 +369,7 @@ pub(crate) fn public_auth_keyring() -> &'static Keyring {
 
 struct PbsAuthContext {
     keyring: &'static Keyring,
-    csrf_secret: Vec<u8>,
+    csrf_secret: &'static HMACKey,
 }
 
 impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
@@ -411,8 +411,8 @@ impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
     }
 
     /// CSRF prevention token secret data.
-    fn csrf_secret(&self) -> &[u8] {
-        &self.csrf_secret
+    fn csrf_secret(&self) -> &'static HMACKey {
+        self.csrf_secret
     }
 
     /// Verify a token secret.
