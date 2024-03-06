@@ -80,6 +80,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 		    }
 		    return values;
 		},
+		cbind: {
+		    isCreate: '{isCreate}', // pass it through
+		},
 		column1: [
 		    {
 			xtype: 'pmxDisplayEditField',
@@ -266,7 +269,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 			xtype: 'pbsNamespaceMaxDepthReduced',
 			name: 'max-depth',
 			fieldLabel: gettext('Max. Depth'),
-			deleteEmpty: true,
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
 		    },
 		    {
 			fieldLabel: gettext('Remove vanished'),
@@ -321,6 +326,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	    {
 		xtype: 'inputpanel',
 		onGetValues: function(values) {
+		    let me = this;
 		    PBS.Utils.delete_if_default(values, 'group-filter');
 		    if (Ext.isArray(values['group-filter'])) {
 			if (values['group-filter'].length === 0) {
@@ -331,7 +337,13 @@ Ext.define('PBS.window.SyncJobEdit', {
 			    values['group-filter'] = [...new Set(values['group-filter'])];
 			}
 		    }
+		    if (me.isCreate) {
+			delete values.delete;
+		    }
 		    return values;
+		},
+		cbind: {
+		    isCreate: '{isCreate}', // pass it through
 		},
 		title: gettext('Group Filter'),
 		items: [
