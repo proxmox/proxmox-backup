@@ -61,7 +61,15 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 			Proxmox.Utils.assemble_field_data(values, { "delete": 'eject-media' });
 		    }
 		    PBS.Utils.delete_if_default(values, 'notify-user');
+
+		    if (me.isCreate) {
+			delete values.delete;
+		    }
+
 		    return values;
+		},
+		cbind: {
+		    isCreate: '{isCreate}', // pass it through
 		},
 		column1: [
 		    {
@@ -184,7 +192,13 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 			delete values['group-filter'];
 			values.delete = 'group-filter';
 		    }
+		    if (this.isCreate) {
+			delete values.delete;
+		    }
 		    return values;
+		},
+		cbind: {
+		    isCreate: '{isCreate}', // pass it through
 		},
 		title: gettext('Group Filter'),
 		items: [
