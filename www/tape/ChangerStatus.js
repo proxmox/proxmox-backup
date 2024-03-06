@@ -60,6 +60,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		submitText: gettext('OK'),
 		method: 'POST',
 		url: `/api2/extjs/tape/changer/${changer}/transfer`,
+		submitOptions: {
+		    timeout: 3*60*1000,
+		},
 		items: [
 		    {
 			xtype: 'displayfield',
@@ -96,6 +99,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		submitText: gettext('OK'),
 		method: 'POST',
 		url: `/api2/extjs/tape/changer/${changer}/transfer`,
+		submitOptions: {
+		    timeout: 3*60*1000,
+		},
 		items: [
 		    {
 			xtype: 'displayfield',
