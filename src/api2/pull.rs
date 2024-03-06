@@ -13,6 +13,7 @@ use pbs_api_types::{
     TRANSFER_LAST_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
+use proxmox_human_byte::HumanByte;
 use proxmox_rest_server::WorkerTask;
 
 use crate::server::jobstate::Job;
@@ -144,7 +145,16 @@ pub fn do_sync_job(
                     sync_job.remote_store,
                 );
 
-                pull_store(&worker, pull_params).await?;
+                let pull_stats = pull_store(&worker, pull_params).await?;
+                task_log!(
+                    worker,
+                    "Summary: sync job pulled {} in {} chunks (average rate: {}/s)",
+                    HumanByte::from(pull_stats.bytes),
+                    pull_stats.chunk_count,
+                    HumanByte::new_binary(
+                        pull_stats.bytes as f64 / pull_stats.elapsed.as_secs_f64()
+                    ),
+                );
 
                 task_log!(worker, "sync job '{}' end", &job_id);
 
