@@ -30,20 +30,33 @@ pub const TERM_PREFIX: &str = "PBSTERM";
 
 struct PbsAuthenticator;
 
-const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
+pub(crate) const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
 
 impl Authenticator for PbsAuthenticator {
     fn authenticate_user<'a>(
-        &self,
+        &'a self,
         username: &'a UsernameRef,
         password: &'a str,
-        _client_ip: Option<&'a IpAddr>,
+        client_ip: Option<&'a IpAddr>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             let data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
             match data[username.as_str()].as_str() {
                 None => bail!("no password set"),
-                Some(enc_password) => proxmox_sys::crypt::verify_crypt_pw(password, enc_password)?,
+                Some(enc_password) => {
+                    proxmox_sys::crypt::verify_crypt_pw(password, enc_password)?;
+
+                    // if the password hash is not based on the current hashing function (as
+                    // identified by its prefix), rehash the password.
+                    if !enc_password.starts_with(proxmox_sys::crypt::HASH_PREFIX) {
+                        // only log that we could not upgrade a password, we already know that the
+                        // user has a valid password, no reason the deny to log in attempt.
+                        if let Err(e) = self.store_password(username, password, client_ip) {
+                            log::warn!("could not upgrade a users password! - {e}");
+                        }
+                    }
+
+                }
             }
             Ok(())
         })
