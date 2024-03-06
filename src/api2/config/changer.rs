@@ -33,6 +33,10 @@ pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
 
     let (mut section_config, _digest) = pbs_config::drive::config()?;
 
+    if section_config.sections.get(&config.name).is_some() {
+        param_bail!("name", "Entry '{}' already exists", config.name);
+    }
+
     let linux_changers = linux_tape_changer_list();
 
     check_drive_path(&linux_changers, &config.path)?;
@@ -40,10 +44,6 @@ pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
     let existing: Vec<ScsiTapeChanger> = section_config.convert_to_typed_array("changer")?;
 
     for changer in existing {
-        if changer.name == config.name {
-            param_bail!("name", "Entry '{}' already exists", config.name);
-        }
-
         if changer.path == config.path {
             param_bail!(
                 "path",

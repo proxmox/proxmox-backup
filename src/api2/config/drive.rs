@@ -34,6 +34,10 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 
     let (mut section_config, _digest) = pbs_config::drive::config()?;
 
+    if section_config.sections.get(&config.name).is_some() {
+        param_bail!("name", "Entry '{}' already exists", config.name);
+    }
+
     let lto_drives = lto_tape_device_list();
 
     check_drive_path(&lto_drives, &config.path)?;
@@ -41,9 +45,6 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
     let existing: Vec<LtoTapeDrive> = section_config.convert_to_typed_array("lto")?;
 
     for drive in existing {
-        if drive.name == config.name {
-            param_bail!("name", "Entry '{}' already exists", config.name);
-        }
         if drive.path == config.path {
             param_bail!(
                 "path",
