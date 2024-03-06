@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, format_err, Error};
 use http::StatusCode;
+use proxmox_human_byte::HumanByte;
 use proxmox_rest_server::WorkerTask;
 use proxmox_router::HttpError;
 use proxmox_sys::{task_log, task_warn};
@@ -657,9 +658,9 @@ async fn pull_index_chunks<I: IndexFile>(
 
     task_log!(
         worker,
-        "downloaded {} bytes ({:.2} MiB/s)",
-        bytes,
-        (bytes as f64) / (1024.0 * 1024.0 * elapsed.as_secs_f64())
+        "downloaded {} ({}/s)",
+        HumanByte::from(bytes),
+        HumanByte::new_binary(bytes as f64 / elapsed.as_secs_f64()),
     );
 
     Ok(PullStats {
