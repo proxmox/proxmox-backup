@@ -84,7 +84,7 @@ Ext.define('LabelSetupPanel', {
 		    xtype: 'ltoTapeType',
 		    name: 'tape_type',
 		    fieldLabel: 'Type',
-		    value: 'L8',
+		    value: 'L9',
 		},
 		{
 		    xtype: 'ltoLabelStyle',

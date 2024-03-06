@@ -11,6 +11,7 @@ Ext.define('LtoTapeType', {
     store: {
 	field: ['value', 'text'],
 	data: [
+	    { value: 'L9', text: "LTO-9" },
 	    { value: 'L8', text: "LTO-8" },
 	    { value: 'L7', text: "LTO-7" },
 	    { value: 'L6', text: "LTO-6" },
