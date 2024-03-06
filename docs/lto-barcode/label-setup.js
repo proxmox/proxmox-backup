@@ -46,6 +46,23 @@ Ext.define('LabelSetupPanel', {
 	    let params = view.getValues();
 	    list.getStore().add(params);
 	},
+
+	validitychange: function() {
+	    let me = this;
+	    let isValid = true;
+	    me.getView().query('field').forEach((field) => {
+		if (!field.isValid()) {
+		    isValid = false;
+		}
+	    });
+	    me.lookup('addButton').setDisabled(!isValid);
+	},
+
+	control: {
+	    'field': {
+		validitychange: 'validitychange',
+	    },
+	},
     },
 
     items: [
@@ -93,6 +110,7 @@ Ext.define('LabelSetupPanel', {
 		{
 		    xtype: 'button',
 		    text: 'Add',
+		    reference: 'addButton',
 		    handler: 'onAdd',
 		},
 	    ],
