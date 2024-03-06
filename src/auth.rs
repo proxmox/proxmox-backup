@@ -349,9 +349,9 @@ pub(crate) fn authenticate_user<'a>(
 }
 
 static PRIVATE_KEYRING: Lazy<Keyring> =
-    Lazy::new(|| Keyring::with_private_key(crate::auth_helpers::private_auth_key().clone().into()));
+    Lazy::new(|| Keyring::with_private_key(crate::auth_helpers::private_auth_key().clone()));
 static PUBLIC_KEYRING: Lazy<Keyring> =
-    Lazy::new(|| Keyring::with_public_key(crate::auth_helpers::public_auth_key().clone().into()));
+    Lazy::new(|| Keyring::with_public_key(crate::auth_helpers::public_auth_key().clone()));
 static AUTH_CONTEXT: OnceCell<PbsAuthContext> = OnceCell::new();
 
 pub fn setup_auth_context(use_private_key: bool) {

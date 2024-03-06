@@ -2,12 +2,10 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use anyhow::Error;
-use lazy_static::lazy_static;
-use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 
 use pbs_config::BackupLockGuard;
-use proxmox_auth_api::HMACKey;
+use proxmox_auth_api::{HMACKey, PrivateKey, PublicKey};
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 
 use pbs_buildcfg::configdir;
@@ -98,36 +96,22 @@ pub fn csrf_secret() -> &'static HMACKey {
     })
 }
 
-fn load_public_auth_key() -> Result<PKey<Public>, Error> {
-    let pem = file_get_contents(configdir!("/authkey.pub"))?;
-    let rsa = Rsa::public_key_from_pem(&pem)?;
-    let key = PKey::from_rsa(rsa)?;
+pub fn public_auth_key() -> &'static PublicKey {
+    static KEY: OnceLock<PublicKey> = OnceLock::new();
 
-    Ok(key)
+    KEY.get_or_init(|| {
+        let pem = file_get_contents(configdir!("/authkey.pub")).unwrap();
+        PublicKey::from_pem(&pem).unwrap()
+    })
 }
 
-pub fn public_auth_key() -> &'static PKey<Public> {
-    lazy_static! {
-        static ref KEY: PKey<Public> = load_public_auth_key().unwrap();
-    }
+pub fn private_auth_key() -> &'static PrivateKey {
+    static KEY: OnceLock<PrivateKey> = OnceLock::new();
 
-    &KEY
-}
-
-fn load_private_auth_key() -> Result<PKey<Private>, Error> {
-    let pem = file_get_contents(configdir!("/authkey.key"))?;
-    let rsa = Rsa::private_key_from_pem(&pem)?;
-    let key = PKey::from_rsa(rsa)?;
-
-    Ok(key)
-}
-
-pub fn private_auth_key() -> &'static PKey<Private> {
-    lazy_static! {
-        static ref KEY: PKey<Private> = load_private_auth_key().unwrap();
-    }
-
-    &KEY
+    KEY.get_or_init(|| {
+        let pem = file_get_contents(configdir!("/authkey.key")).unwrap();
+        PrivateKey::from_pem(&pem).unwrap()
+    })
 }
 
 const LDAP_PASSWORDS_FILENAME: &str = configdir!("/ldap_passwords.json");
