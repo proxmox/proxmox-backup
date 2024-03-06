@@ -27,7 +27,7 @@ Ext.define('PBS.panel.PruneInputPanel', {
 	if (me.ns && me.ns !== '') {
 	    values.ns = me.ns;
 	}
-	if (!values.recursive) {
+	if (!values.recursive && me.canRecurse) {
 	    values['max-depth'] = 0;
 	}
 	delete values.recursive;

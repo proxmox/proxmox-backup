@@ -479,6 +479,7 @@ Ext.define('PBS.DataStoreContent', {
 			ns,
 			dryrun: true,
 			canRecurse: true,
+			isCreate: true,
 		    },
 		],
 	    });

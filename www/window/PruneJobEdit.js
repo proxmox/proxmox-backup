@@ -105,7 +105,9 @@ Ext.define('PBS.window.PruneJobEdit', {
 		xtype: 'pbsNamespaceMaxDepthReduced',
 		name: 'max-depth',
 		fieldLabel: gettext('Max. Depth'),
-		deleteEmpty: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
 
@@ -133,6 +135,9 @@ Ext.define('PBS.window.PruneJobEdit', {
 	columnB: [
 	    {
 		xtype: 'pbsPruneInputPanel',
+		cbind: {
+		    isCreate: '{isCreate}',
+		},
 		getValues: () => ({}), // let that handle our inputpanel here
 	    },
 	    {
