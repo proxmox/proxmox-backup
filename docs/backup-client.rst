@@ -257,7 +257,7 @@ Restoring this backup will result in:
 
 .. code-block:: console
 
-    ls -aR restored
+    # ls -aR restored
     restored/:
     .  ..  .pxarexclude  subfolder0  subfolder1
 
