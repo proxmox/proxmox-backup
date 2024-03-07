@@ -16,7 +16,11 @@
 /*.tar*
 /.do-cargo-build
 /Cargo.lock
+/docs/*/synopsis.rst
+/docs/config/*/config.rst
+/docs/config/acl/roles.rst
 /docs/output
+/docs/proxmox-backup-client/catalog-shell-synopsis.rst
 /etc/proxmox-backup-proxy.service
 /etc/proxmox-backup.service
 /proxmox-backup-server-dpkg-contents.txt
