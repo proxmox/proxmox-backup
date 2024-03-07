@@ -267,6 +267,18 @@ Restoring this backup will result in:
     restored/subfolder1:
     .  ..  file2
 
+The same syntax can also be used directly in the cli with the ``--exclude``
+parameter. For example:
+
+.. code-block:: console
+
+    # proxmox-backup-client backup.pxar:./linux --exclude /usr
+
+Multiple paths can be excluded like this:
+
+.. code-block:: console
+
+    # proxmox-backup-client backup.pxar:./linux --exclude=/usr --exclude=/rust
 
 .. _client_encryption:
 
