@@ -146,15 +146,20 @@ pub fn do_sync_job(
                 );
 
                 let pull_stats = pull_store(&worker, pull_params).await?;
-                task_log!(
-                    worker,
-                    "Summary: sync job pulled {} in {} chunks (average rate: {}/s)",
-                    HumanByte::from(pull_stats.bytes),
-                    pull_stats.chunk_count,
-                    HumanByte::new_binary(
-                        pull_stats.bytes as f64 / pull_stats.elapsed.as_secs_f64()
-                    ),
-                );
+
+                if pull_stats.bytes != 0 {
+                    let amount = HumanByte::from(pull_stats.bytes);
+                    let rate = HumanByte::new_binary(
+                        pull_stats.bytes as f64 / pull_stats.elapsed.as_secs_f64(),
+                    );
+                    task_log!(
+                        worker,
+                        "Summary: sync job pulled {amount} in {} chunks (average rate: {rate}/s)",
+                        pull_stats.chunk_count,
+                    );
+                } else {
+                    task_log!(worker, "Summary: sync job found no new data to pull");
+                }
 
                 task_log!(worker, "sync job '{}' end", &job_id);
 
