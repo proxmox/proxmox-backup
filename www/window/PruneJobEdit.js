@@ -116,9 +116,8 @@ Ext.define('PBS.window.PruneJobEdit', {
 		fieldLabel: gettext('Prune Schedule'),
 		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
-		emptyText: gettext('none (disabled)'),
+		allowBlank: false,
 		cbind: {
-		    deleteEmpty: '{!isCreate}',
 		    value: '{scheduleValue}',
 		},
 	    },
