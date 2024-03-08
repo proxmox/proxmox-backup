@@ -294,7 +294,8 @@ pub async fn delete_group(
             &group,
         )?;
 
-        if !datastore.remove_backup_group(&ns, &group)? {
+        let delete_stats = datastore.remove_backup_group(&ns, &group)?;
+        if !delete_stats.all_removed() {
             bail!("group only partially deleted due to protected snapshots");
         }
 

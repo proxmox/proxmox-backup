@@ -23,7 +23,7 @@ use pbs_api_types::{
     DatastoreTuning, GarbageCollectionStatus, Operation, UPID,
 };
 
-use crate::backup_info::{BackupDir, BackupGroup};
+use crate::backup_info::{BackupDir, BackupGroup, BackupGroupDeleteStats};
 use crate::chunk_store::ChunkStore;
 use crate::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -500,8 +500,8 @@ impl DataStore {
         let mut removed_all_groups = true;
 
         for group in self.iter_backup_groups(ns.to_owned())? {
-            let removed_group = group?.destroy()?;
-            removed_all_groups = removed_all_groups && removed_group;
+            let delete_stats = group?.destroy()?;
+            removed_all_groups = removed_all_groups && delete_stats.all_removed();
         }
 
         let base_file = std::fs::File::open(self.base_path())?;
@@ -581,12 +581,13 @@ impl DataStore {
 
     /// Remove a complete backup group including all snapshots.
     ///
-    /// Returns true if all snapshots were removed, and false if some were protected
+    /// Returns `BackupGroupDeleteStats`, containing the number of deleted snapshots
+    /// and number of protected snaphsots, which therefore were not removed.
     pub fn remove_backup_group(
         self: &Arc<Self>,
         ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
-    ) -> Result<bool, Error> {
+    ) -> Result<BackupGroupDeleteStats, Error> {
         let backup_group = self.backup_group(ns.clone(), backup_group.clone());
 
         backup_group.destroy()

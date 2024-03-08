@@ -1498,18 +1498,19 @@ pub(crate) async fn pull_ns(
                     continue;
                 }
                 task_log!(worker, "delete vanished group '{local_group}'",);
-                match params
+                let delete_stats_result = params
                     .target
                     .store
-                    .remove_backup_group(&target_ns, local_group)
-                {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        task_log!(
-                            worker,
-                            "kept some protected snapshots of group '{}'",
-                            local_group
-                        );
+                    .remove_backup_group(&target_ns, local_group);
+
+                match delete_stats_result {
+                    Ok(stats) => {
+                        if !stats.all_removed() {
+                            task_log!(
+                                worker,
+                                "kept some protected snapshots of group '{local_group}'",
+                            );
+                        }
                     }
                     Err(err) => {
                         task_log!(worker, "{}", err);
