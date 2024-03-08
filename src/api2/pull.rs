@@ -161,6 +161,16 @@ pub fn do_sync_job(
                     task_log!(worker, "Summary: sync job found no new data to pull");
                 }
 
+                if let Some(removed) = pull_stats.removed {
+                    task_log!(
+                        worker,
+                        "Summary: removed vanished: snapshots: {}, groups: {}, namespaces: {}",
+                        removed.snapshots,
+                        removed.groups,
+                        removed.namespaces,
+                    );
+                }
+
                 task_log!(worker, "sync job '{}' end", &job_id);
 
                 Ok(())
