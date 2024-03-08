@@ -21,8 +21,8 @@
 /docs/config/acl/roles.rst
 /docs/output
 /docs/proxmox-backup-client/catalog-shell-synopsis.rst
-/etc/proxmox-backup-proxy.service
-/etc/proxmox-backup.service
+# all services are generated from a .in file to set the libexec path
+/etc/*.service
 /proxmox-backup-server-dpkg-contents.txt
 /www/.lint-incremental
 /www/js/
