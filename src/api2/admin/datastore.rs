@@ -945,6 +945,12 @@ pub fn verify(
                 type: BackupNamespace,
                 optional: true,
             },
+            "use-task": {
+                type: bool,
+                default: false,
+                optional: true,
+                description: "Spins up an asynchronous task that does the work.",
+            },
         },
     },
     returns: pbs_api_types::ADMIN_DATASTORE_PRUNE_RETURN_TYPE,
@@ -961,7 +967,7 @@ pub fn prune(
     keep_options: KeepOptions,
     store: String,
     ns: Option<BackupNamespace>,
-    _param: Value,
+    param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -979,7 +985,20 @@ pub fn prune(
     let worker_id = format!("{}:{}:{}", store, ns, group);
     let group = datastore.backup_group(ns.clone(), group);
 
-    let mut prune_result = Vec::new();
+    #[derive(Debug, serde::Serialize)]
+    struct PruneResult {
+        #[serde(rename = "backup-type")]
+        backup_type: BackupType,
+        #[serde(rename = "backup-id")]
+        backup_id: String,
+        #[serde(rename = "backup-time")]
+        backup_time: i64,
+        keep: bool,
+        protected: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ns: Option<BackupNamespace>,
+    }
+    let mut prune_result: Vec<PruneResult> = Vec::new();
 
     let list = group.list_backups()?;
 
@@ -992,78 +1011,97 @@ pub fn prune(
     if dry_run {
         for (info, mark) in prune_info {
             let keep = keep_all || mark.keep();
+            let backup_dir = &info.backup_dir;
 
-            let mut result = json!({
-                "backup-type": info.backup_dir.backup_type(),
-                "backup-id": info.backup_dir.backup_id(),
-                "backup-time": info.backup_dir.backup_time(),
-                "keep": keep,
-                "protected": mark.protected(),
-            });
-            let prune_ns = info.backup_dir.backup_ns();
+            let mut result = PruneResult {
+                backup_type: backup_dir.backup_type(),
+                backup_id: backup_dir.backup_id().to_owned(),
+                backup_time: backup_dir.backup_time(),
+                keep,
+                protected: mark.protected(),
+                ns: None,
+            };
+            let prune_ns = backup_dir.backup_ns();
             if !prune_ns.is_root() {
-                result["ns"] = serde_json::to_value(prune_ns)?;
+                result.ns = Some(prune_ns.to_owned());
             }
             prune_result.push(result);
         }
         return Ok(json!(prune_result));
     }
 
-    // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(worker_id), auth_id.to_string(), true)?;
+    let prune_group = move |worker: Arc<WorkerTask>| {
+        if keep_all {
+            task_log!(worker, "No prune selection - keeping all files.");
+        } else {
+            let mut opts = Vec::new();
+            if !ns.is_root() {
+                opts.push(format!("--ns {ns}"));
+            }
+            crate::server::cli_keep_options(&mut opts, &keep_options);
 
-    if keep_all {
-        task_log!(worker, "No prune selection - keeping all files.");
-    } else {
-        let mut opts = Vec::new();
-        if !ns.is_root() {
-            opts.push(format!("--ns {ns}"));
+            task_log!(worker, "retention options: {}", opts.join(" "));
+            task_log!(
+                worker,
+                "Starting prune on {} group \"{}\"",
+                print_store_and_ns(&store, &ns),
+                group.group(),
+            );
         }
-        crate::server::cli_keep_options(&mut opts, &keep_options);
 
-        task_log!(worker, "retention options: {}", opts.join(" "));
-        task_log!(
-            worker,
-            "Starting prune on {} group \"{}\"",
-            print_store_and_ns(&store, &ns),
-            group.group(),
-        );
-    }
+        for (info, mark) in prune_info {
+            let keep = keep_all || mark.keep();
+            let backup_dir = &info.backup_dir;
 
-    for (info, mark) in prune_info {
-        let keep = keep_all || mark.keep();
+            let backup_time = backup_dir.backup_time();
+            let timestamp = backup_dir.backup_time_string();
+            let group: &pbs_api_types::BackupGroup = backup_dir.as_ref();
 
-        let backup_time = info.backup_dir.backup_time();
-        let timestamp = info.backup_dir.backup_time_string();
-        let group: &pbs_api_types::BackupGroup = info.backup_dir.as_ref();
+            let msg = format!("{}/{}/{timestamp} {mark}", group.ty, group.id);
 
-        let msg = format!("{}/{}/{} {}", group.ty, group.id, timestamp, mark,);
+            task_log!(worker, "{msg}");
 
-        task_log!(worker, "{}", msg);
+            prune_result.push(PruneResult {
+                backup_type: group.ty,
+                backup_id: group.id.clone(),
+                backup_time,
+                keep,
+                protected: mark.protected(),
+                ns: None,
+            });
 
-        prune_result.push(json!({
-            "backup-type": group.ty,
-            "backup-id": group.id,
-            "backup-time": backup_time,
-            "keep": keep,
-            "protected": mark.protected(),
-        }));
-
-        if !(dry_run || keep) {
-            if let Err(err) = info.backup_dir.destroy(false) {
-                task_warn!(
-                    worker,
-                    "failed to remove dir {:?}: {}",
-                    info.backup_dir.relative_path(),
-                    err,
-                );
+            if !keep {
+                if let Err(err) = backup_dir.destroy(false) {
+                    task_warn!(
+                        worker,
+                        "failed to remove dir {:?}: {}",
+                        backup_dir.relative_path(),
+                        err,
+                    );
+                }
             }
         }
+        prune_result
+    };
+
+    if param["use-task"].as_bool().unwrap_or(false) {
+        let upid = WorkerTask::spawn(
+            "prune",
+            Some(worker_id),
+            auth_id.to_string(),
+            true,
+            move |worker| async move {
+                let _ = prune_group(worker.clone());
+                Ok(())
+            },
+        )?;
+        Ok(json!(upid))
+    } else {
+        let worker = WorkerTask::new("prune", Some(worker_id), auth_id.to_string(), true)?;
+        let result = prune_group(worker.clone());
+        worker.log_result(&Ok(()));
+        Ok(json!(result))
     }
-
-    worker.log_result(&Ok(()));
-
-    Ok(json!(prune_result))
 }
 
 #[api(

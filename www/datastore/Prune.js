@@ -52,6 +52,7 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 	if (me.ns && me.ns !== '') {
 	    values.ns = me.ns;
 	}
+	values["use-task"] = true;
 	return values;
     },
 
