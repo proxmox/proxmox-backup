@@ -66,10 +66,35 @@ pub(crate) struct LocalSource {
 }
 
 #[derive(Default)]
+pub(crate) struct RemovedVanishedStats {
+    pub(crate) groups: usize,
+    pub(crate) snapshots: usize,
+    pub(crate) namespaces: usize,
+}
+
+impl RemovedVanishedStats {
+    fn add(&mut self, rhs: RemovedVanishedStats) {
+        self.groups += rhs.groups;
+        self.snapshots += rhs.snapshots;
+        self.namespaces += rhs.namespaces;
+    }
+}
+
+#[derive(Default)]
 pub(crate) struct PullStats {
     pub(crate) chunk_count: usize,
     pub(crate) bytes: usize,
     pub(crate) elapsed: Duration,
+    pub(crate) removed: Option<RemovedVanishedStats>,
+}
+
+impl From<RemovedVanishedStats> for PullStats {
+    fn from(removed: RemovedVanishedStats) -> Self {
+        Self {
+            removed: Some(removed),
+            ..Default::default()
+        }
+    }
 }
 
 impl PullStats {
@@ -77,6 +102,14 @@ impl PullStats {
         self.chunk_count += rhs.chunk_count;
         self.bytes += rhs.bytes;
         self.elapsed += rhs.elapsed;
+
+        if let Some(rhs_removed) = rhs.removed {
+            if let Some(ref mut removed) = self.removed {
+                removed.add(rhs_removed);
+            } else {
+                self.removed = Some(rhs_removed);
+            }
+        }
     }
 }
 
@@ -667,6 +700,7 @@ async fn pull_index_chunks<I: IndexFile>(
         chunk_count,
         bytes,
         elapsed,
+        removed: None,
     })
 }
 
@@ -1147,6 +1181,11 @@ async fn pull_group(
                 .target
                 .store
                 .remove_backup_dir(&target_ns, snapshot.as_ref(), false)?;
+            pull_stats.add(PullStats::from(RemovedVanishedStats {
+                snapshots: 1,
+                groups: 0,
+                namespaces: 0,
+            }));
         }
     }
 
@@ -1199,8 +1238,9 @@ fn check_and_remove_vanished_ns(
     worker: &WorkerTask,
     params: &PullParameters,
     synced_ns: HashSet<BackupNamespace>,
-) -> Result<bool, Error> {
+) -> Result<(bool, RemovedVanishedStats), Error> {
     let mut errors = false;
+    let mut removed_stats = RemovedVanishedStats::default();
     let user_info = CachedUserInfo::new()?;
 
     // clamp like remote does so that we don't list more than we can ever have synced.
@@ -1235,7 +1275,10 @@ fn check_and_remove_vanished_ns(
             continue;
         }
         match check_and_remove_ns(params, &local_ns) {
-            Ok(true) => task_log!(worker, "Removed namespace {}", local_ns),
+            Ok(true) => {
+                task_log!(worker, "Removed namespace {local_ns}");
+                removed_stats.namespaces += 1;
+            }
             Ok(false) => task_log!(
                 worker,
                 "Did not remove namespace {} - protected snapshots remain",
@@ -1248,7 +1291,7 @@ fn check_and_remove_vanished_ns(
         }
     }
 
-    Ok(errors)
+    Ok((errors, removed_stats))
 }
 
 /// Pulls a store according to `params`.
@@ -1372,7 +1415,9 @@ pub(crate) async fn pull_store(
     }
 
     if params.remove_vanished {
-        errors |= check_and_remove_vanished_ns(worker, &params, synced_ns)?;
+        let (has_errors, stats) = check_and_remove_vanished_ns(worker, &params, synced_ns)?;
+        errors |= has_errors;
+        pull_stats.add(PullStats::from(stats));
     }
 
     if errors {
@@ -1510,6 +1555,17 @@ pub(crate) async fn pull_ns(
                                 worker,
                                 "kept some protected snapshots of group '{local_group}'",
                             );
+                            pull_stats.add(PullStats::from(RemovedVanishedStats {
+                                snapshots: stats.removed_snapshots(),
+                                groups: 0,
+                                namespaces: 0,
+                            }));
+                        } else {
+                            pull_stats.add(PullStats::from(RemovedVanishedStats {
+                                snapshots: stats.removed_snapshots(),
+                                groups: 1,
+                                namespaces: 0,
+                            }));
                         }
                     }
                     Err(err) => {
