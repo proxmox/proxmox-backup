@@ -546,6 +546,10 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	onCopy: async function(view, rI, cI, item, e, { data }) {
+	    await navigator.clipboard.writeText(data.text);
+	},
+
 	onNotesEdit: function(view, data) {
 	    let me = this;
 
@@ -884,6 +888,7 @@ Ext.define('PBS.DataStoreContent', {
 	    if (record.data.ty === 'group') {
 		menu = Ext.create('PBS.datastore.GroupCmdMenu', {
 		    title: gettext('Group'),
+		    onCopy: createControllerCallback('onCopy'),
 		    onVerify: createControllerCallback('onVerify'),
 		    onChangeOwner: createControllerCallback('onChangeOwner'),
 		    onPrune: createControllerCallback('onPrune'),
@@ -892,6 +897,7 @@ Ext.define('PBS.DataStoreContent', {
 	    } else if (record.data.ty === 'dir') {
 		menu = Ext.create('PBS.datastore.SnapshotCmdMenu', {
 		    title: gettext('Snapshot'),
+		    onCopy: createControllerCallback('onCopy'),
 		    onVerify: createControllerCallback('onVerify'),
 		    onProtectionChange: createControllerCallback('onProtectionChange'),
 		    onForget: createControllerCallback('onForget'),
@@ -1284,12 +1290,21 @@ Ext.define('PBS.datastore.GroupCmdMenu', {
     extend: 'Ext.menu.Menu',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onCopy: undefined,
     onVerify: undefined,
     onChangeOwner: undefined,
     onPrune: undefined,
     onForget: undefined,
 
     items: [
+	{
+	    text: gettext('Copy name to clipboard'),
+	    iconCls: 'fa fa-clipboard',
+	    handler: function() { this.up('menu').onCopy(); },
+	    cbind: {
+		hidden: '{!onCopy}',
+	    },
+	},
 	{
 	    text: gettext('Verify'),
 	    iconCls: 'pve-icon-verify-lettering',
@@ -1330,11 +1345,21 @@ Ext.define('PBS.datastore.SnapshotCmdMenu', {
     extend: 'Ext.menu.Menu',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onCopy: undefined,
     onVerify: undefined,
     onProtectionChange: undefined,
     onForget: undefined,
 
     items: [
+	{
+	    text: gettext('Copy name to clipboard'),
+	    iconCls: 'fa fa-clipboard',
+	    handler: function() { this.up('menu').onCopy(); },
+	    cbind: {
+		hidden: '{!onCopy}',
+		disabled: '{!onCopy}',
+	    },
+	},
 	{
 	    text: gettext('Verify'),
 	    iconCls: 'pve-icon-verify-lettering',
