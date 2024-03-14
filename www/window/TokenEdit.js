@@ -203,9 +203,9 @@ Ext.define('PBS.window.TokenShow', {
     ],
     buttons: [
 	{
-	    handler: function(b) {
-		document.getElementById('token-secret-value').select();
-		document.execCommand("copy");
+	    handler: async function(b) {
+		let el = document.getElementById('token-secret-value');
+		await navigator.clipboard.writeText(el.value);
 	    },
 	    text: gettext('Copy Secret Value'),
 	},

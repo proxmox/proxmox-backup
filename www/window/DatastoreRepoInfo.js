@@ -113,15 +113,14 @@ Ext.define('PBS.form.CopyField', {
 	    iconCls: 'fa fa-clipboard x-btn-icon-el-default-toolbar-small',
 	    baseCls: 'x-btn',
 	    cls: 'x-btn-default-toolbar-small proxmox-inline-button',
-	    handler: function() {
+	    handler: async function() {
 		let me = this;
 		let field = me.up('pbsCopyField');
 		let el = field.getComponent('inputField')?.inputEl;
 		if (!el?.dom) {
 		    return;
 		}
-		el.dom.select();
-		document.execCommand("copy");
+		await navigator.clipboard.writeText(el.dom.value);
 	    },
 	    text: gettext('Copy'),
 	},

@@ -45,10 +45,9 @@ Ext.define('PBS.NodeInfoPanel', {
 		    {
 			xtype: 'button',
 			iconCls: 'fa fa-clipboard',
-			handler: function(b) {
+			handler: async function(b) {
 			    var el = document.getElementById('fingerprintField');
-			    el.select();
-			    document.execCommand("copy");
+			    await navigator.clipboard.writeText(el.value);
 			},
 			text: gettext('Copy'),
 		    },

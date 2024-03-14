@@ -76,11 +76,9 @@ Ext.define('PBS.ServerStatus', {
 		{
 		    xtype: 'button',
 		    iconCls: 'fa fa-clipboard',
-		    handler: function(button) {
-			window.getSelection().selectAllChildren(
-			    document.getElementById('pkgversions'),
-			);
-			document.execCommand("copy");
+		    handler: async function(button) {
+			let el = document.getElementById('pkgversions');
+			await navigator.clipboard.writeText(el.textContent);
 		    },
 		    text: gettext('Copy'),
 		},
