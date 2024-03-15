@@ -2,54 +2,14 @@
 
 use anyhow::Error;
 
-use proxmox_router::{http_bail, http_err, Permission, Router, RpcEnvironment};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_tfa::api::methods;
 
-use pbs_api_types::{
-    Authid, User, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
-};
+use pbs_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 use pbs_config::CachedUserInfo;
 
 use crate::config::tfa::UserAccess;
-
-/// Perform first-factor (password) authentication only. Ignore password for the root user.
-/// Otherwise check the current user's password.
-///
-/// This means that user admins need to type in their own password while editing a user, and
-/// regular users, which can only change their own TFA settings (checked at the API level), can
-/// change their own settings using their own password.
-async fn tfa_update_auth(
-    rpcenv: &mut dyn RpcEnvironment,
-    userid: &Userid,
-    password: Option<String>,
-    must_exist: bool,
-) -> Result<(), Error> {
-    let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    if authid.user() != Userid::root_userid() {
-        let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
-        let password = password.ok_or_else(|| http_err!(UNAUTHORIZED, "missing password"))?;
-        #[allow(clippy::let_unit_value)]
-        {
-            let _: () =
-                crate::auth::authenticate_user(authid.user(), &password, client_ip.as_ref())
-                    .await
-                    .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
-        }
-    }
-
-    // After authentication, verify that the to-be-modified user actually exists:
-    if must_exist && authid.user() != userid {
-        let (config, _digest) = pbs_config::user::config()?;
-
-        if config.lookup::<User>("user", userid.as_str()).is_err() {
-            http_bail!(UNAUTHORIZED, "user '{}' does not exists.", userid);
-        }
-    }
-
-    Ok(())
-}
 
 #[api(
     protected: true,
@@ -128,7 +88,7 @@ pub async fn delete_tfa(
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password, false).await?;
+    super::user_update_auth(rpcenv, &userid, password, false).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
@@ -225,7 +185,7 @@ async fn add_tfa_entry(
     r#type: methods::TfaType,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<methods::TfaUpdateInfo, Error> {
-    tfa_update_auth(rpcenv, &userid, password, true).await?;
+    super::user_update_auth(rpcenv, &userid, password, true).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
@@ -285,7 +245,7 @@ async fn update_tfa_entry(
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password, true).await?;
+    super::user_update_auth(rpcenv, &userid, password, true).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 

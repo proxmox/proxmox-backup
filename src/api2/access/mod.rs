@@ -6,13 +6,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_router::{
+    http_bail, http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
+};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{
-    Authid, Userid, ACL_PATH_SCHEMA, PASSWORD_SCHEMA, PRIVILEGES, PRIV_PERMISSIONS_MODIFY,
-    PRIV_SYS_AUDIT,
+    Authid, User, Userid, ACL_PATH_SCHEMA, PASSWORD_FORMAT, PASSWORD_SCHEMA, PRIVILEGES,
+    PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
 };
 use pbs_config::acl::AclTreeNode;
 use pbs_config::CachedUserInfo;
@@ -24,6 +26,47 @@ pub mod role;
 pub mod tfa;
 pub mod user;
 
+/// Perform first-factor (password) authentication only. Ignore password for the root user.
+/// Otherwise check the current user's password.
+///
+/// This means that user admins need to type in their own password while editing a user, and
+/// regular users, which can only change their own settings (checked at the API level), can change
+/// their own settings using their own password.
+pub(self) async fn user_update_auth<S: AsRef<str>>(
+    rpcenv: &mut dyn RpcEnvironment,
+    userid: &Userid,
+    password: Option<S>,
+    must_exist: bool,
+) -> Result<(), Error> {
+    let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    if authid.user() != Userid::root_userid() {
+        let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
+        let password = password.ok_or_else(|| http_err!(UNAUTHORIZED, "missing password"))?;
+        #[allow(clippy::let_unit_value)]
+        {
+            let _: () = crate::auth::authenticate_user(
+                authid.user(),
+                password.as_ref(),
+                client_ip.as_ref(),
+            )
+            .await
+            .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
+        }
+    }
+
+    // After authentication, verify that the to-be-modified user actually exists:
+    if must_exist && authid.user() != userid {
+        let (config, _digest) = pbs_config::user::config()?;
+
+        if config.lookup::<User>("user", userid.as_str()).is_err() {
+            http_bail!(UNAUTHORIZED, "user '{}' does not exists.", userid);
+        }
+    }
+
+    Ok(())
+}
+
 #[api(
     protected: true,
     input: {
@@ -33,6 +76,14 @@ pub mod user;
             },
             password: {
                 schema: PASSWORD_SCHEMA,
+            },
+            "confirmation-password": {
+                type: String,
+                description: "The current password for confirmation, unless logged in as root@pam",
+                min_length: 1,
+                max_length: 1024,
+                format: &PASSWORD_FORMAT,
+                optional: true,
             },
         },
     },
@@ -45,11 +96,14 @@ pub mod user;
 ///
 /// Each user is allowed to change his own password. Superuser
 /// can change all passwords.
-pub fn change_password(
+pub async fn change_password(
     userid: Userid,
     password: String,
+    confirmation_password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+    user_update_auth(rpcenv, &userid, confirmation_password, true).await?;
+
     let current_auth: Authid = rpcenv
         .get_auth_id()
         .ok_or_else(|| format_err!("no authid available"))?
