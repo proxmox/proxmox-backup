@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
+use const_format::concatcp;
 use serde::de::{value, IntoDeserializer};
 use serde::{Deserialize, Serialize};
-use const_format::concatcp;
 
 use proxmox_lang::constnamedbitmap;
 use proxmox_schema::{
