@@ -89,6 +89,15 @@ pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
 
 // parse ip address with optional cidr mask
 pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), Error> {
+    /// NOTE: This is NOT the same regex as in proxmox-schema as this one has capture groups for
+    /// the addresses vs cidr portions!
+    lazy_static! {
+        pub static ref CIDR_V4_REGEX: Regex =
+            Regex::new(concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")).unwrap();
+        pub static ref CIDR_V6_REGEX: Regex =
+            Regex::new(concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")).unwrap();
+    }
+
     if let Some(caps) = CIDR_V4_REGEX.captures(cidr) {
         let address = &caps[1];
         if let Some(mask) = caps.get(2) {
