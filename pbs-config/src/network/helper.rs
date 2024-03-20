@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{bail, format_err, Error};
+use const_format::concatcp;
 use lazy_static::lazy_static;
 use nix::ioctl_read_bad;
 use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
@@ -89,13 +90,13 @@ pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
 
 // parse ip address with optional cidr mask
 pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), Error> {
-    /// NOTE: This is NOT the same regex as in proxmox-schema as this one has capture groups for
-    /// the addresses vs cidr portions!
+    // NOTE: This is NOT the same regex as in proxmox-schema as this one has capture groups for
+    // the addresses vs cidr portions!
     lazy_static! {
         pub static ref CIDR_V4_REGEX: Regex =
-            Regex::new(concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")).unwrap();
+            Regex::new(concatcp!(r"^(", IPV4RE_STR, r")(?:/(\d{1,2}))?$")).unwrap();
         pub static ref CIDR_V6_REGEX: Regex =
-            Regex::new(concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")).unwrap();
+            Regex::new(concatcp!(r"^(", IPV6RE_STR, r")(?:/(\d{1,3}))?$")).unwrap();
     }
 
     if let Some(caps) = CIDR_V4_REGEX.captures(cidr) {
