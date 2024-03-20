@@ -22,15 +22,19 @@ pub use media_location::*;
 mod media;
 pub use media::*;
 
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema};
 use proxmox_uuid::Uuid;
 
-use crate::{BackupType, BACKUP_ID_SCHEMA, FINGERPRINT_SHA256_FORMAT};
+use crate::{
+    BackupType, BACKUP_ID_SCHEMA, BACKUP_NS_PATH_RE, FINGERPRINT_SHA256_FORMAT,
+    PROXMOX_SAFE_ID_REGEX_STR, SNAPSHOT_PATH_REGEX_STR,
+};
 
 const_regex! {
-    pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":(?:", BACKUP_NS_PATH_RE!(),")?", SNAPSHOT_PATH_REGEX_STR!(), r"$");
+    pub TAPE_RESTORE_SNAPSHOT_REGEX = concatcp!(r"^", PROXMOX_SAFE_ID_REGEX_STR, r":(?:", BACKUP_NS_PATH_RE,")?", SNAPSHOT_PATH_REGEX_STR, r"$");
 }
 
 pub const TAPE_RESTORE_SNAPSHOT_FORMAT: ApiStringFormat =

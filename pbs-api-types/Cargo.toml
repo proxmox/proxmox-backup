@@ -7,6 +7,7 @@ description = "general API type helpers for PBS"
 
 [dependencies]
 anyhow.workspace = true
+const_format.workspace = true
 hex.workspace = true
 lazy_static.workspace = true
 percent-encoding.workspace = true

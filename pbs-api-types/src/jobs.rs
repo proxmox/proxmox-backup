@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::bail;
+use const_format::concatcp;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -8,17 +9,17 @@ use proxmox_schema::*;
 
 use crate::{
     Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
-    BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
-    SINGLE_LINE_COMMENT_SCHEMA,
+    BACKUP_NAMESPACE_SCHEMA, BACKUP_NS_RE, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT,
+    PROXMOX_SAFE_ID_REGEX_STR, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 const_regex! {
 
     /// Regex for verification jobs 'DATASTORE:ACTUAL_JOB_ID'
-    pub VERIFICATION_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
+    pub VERIFICATION_JOB_WORKER_ID_REGEX = concatcp!(r"^(", PROXMOX_SAFE_ID_REGEX_STR, r"):");
     /// Regex for sync jobs '(REMOTE|\-):REMOTE_DATASTORE:LOCAL_DATASTORE:(?:LOCAL_NS_ANCHOR:)ACTUAL_JOB_ID'
-    pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"|\-):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r")(?::(", BACKUP_NS_RE!(), r"))?:");
+    pub SYNC_JOB_WORKER_ID_REGEX = concatcp!(r"^(", PROXMOX_SAFE_ID_REGEX_STR, r"|\-):(", PROXMOX_SAFE_ID_REGEX_STR, r"):(", PROXMOX_SAFE_ID_REGEX_STR, r")(?::(", BACKUP_NS_RE, r"))?:");
 }
 
 pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")

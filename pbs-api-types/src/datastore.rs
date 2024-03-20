@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
@@ -10,31 +11,33 @@ use proxmox_schema::{
 };
 
 use crate::{
-    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid,
-    DATASTORE_NOTIFY_STRING_SCHEMA, GC_SCHEDULE_SCHEMA, PROXMOX_SAFE_ID_FORMAT,
-    PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA, UPID,
+    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid, BACKUP_ID_RE,
+    BACKUP_NS_RE, BACKUP_TIME_RE, BACKUP_TYPE_RE, DATASTORE_NOTIFY_STRING_SCHEMA,
+    GC_SCHEDULE_SCHEMA, GROUP_OR_SNAPSHOT_PATH_REGEX_STR, PROXMOX_SAFE_ID_FORMAT,
+    PROXMOX_SAFE_ID_REGEX_STR, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA,
+    SNAPSHOT_PATH_REGEX_STR, UPID,
 };
 
 const_regex! {
-    pub BACKUP_NAMESPACE_REGEX = concat!(r"^", BACKUP_NS_RE!(), r"$");
+    pub BACKUP_NAMESPACE_REGEX = concatcp!(r"^", BACKUP_NS_RE, r"$");
 
-    pub BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
+    pub BACKUP_TYPE_REGEX = concatcp!(r"^(", BACKUP_TYPE_RE, r")$");
 
-    pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
+    pub BACKUP_ID_REGEX = concatcp!(r"^", BACKUP_ID_RE, r"$");
 
-    pub BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
+    pub BACKUP_DATE_REGEX = concatcp!(r"^", BACKUP_TIME_RE ,r"$");
 
-    pub GROUP_PATH_REGEX = concat!(
-        r"^(", BACKUP_TYPE_RE!(), ")/",
-        r"(", BACKUP_ID_RE!(), r")$",
+    pub GROUP_PATH_REGEX = concatcp!(
+        r"^(", BACKUP_TYPE_RE, ")/",
+        r"(", BACKUP_ID_RE, r")$",
     );
 
     pub BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
 
-    pub SNAPSHOT_PATH_REGEX = concat!(r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
-    pub GROUP_OR_SNAPSHOT_PATH_REGEX = concat!(r"^", GROUP_OR_SNAPSHOT_PATH_REGEX_STR!(), r"$");
+    pub SNAPSHOT_PATH_REGEX = concatcp!(r"^", SNAPSHOT_PATH_REGEX_STR, r"$");
+    pub GROUP_OR_SNAPSHOT_PATH_REGEX = concatcp!(r"^", GROUP_OR_SNAPSHOT_PATH_REGEX_STR, r"$");
 
-    pub DATASTORE_MAP_REGEX = concat!(r"^(?:", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
+    pub DATASTORE_MAP_REGEX = concatcp!(r"^(?:", PROXMOX_SAFE_ID_REGEX_STR, r"=)?", PROXMOX_SAFE_ID_REGEX_STR, r"$");
 }
 
 pub const CHUNK_DIGEST_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SHA256_HEX_REGEX);

@@ -2,12 +2,14 @@ use std::sync::{Arc, Mutex};
 
 use ::serde::{Deserialize, Serialize};
 use anyhow::Error;
+use const_format::concatcp;
 use lazy_static::lazy_static;
 use openssl::sha;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use pbs_api_types::{IPRE, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
+use pbs_api_types::IPRE_STR;
+
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
@@ -47,7 +49,7 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
     lazy_static! {
         static ref DOMAIN_REGEX: Regex = Regex::new(r"^\s*(?:search|domain)\s+(\S+)\s*").unwrap();
         static ref SERVER_REGEX: Regex =
-            Regex::new(concat!(r"^\s*nameserver\s+(", IPRE!(), r")\s*")).unwrap();
+            Regex::new(concatcp!(r"^\s*nameserver\s+(", IPRE_STR, r")\s*")).unwrap();
     }
 
     let mut options = String::new();

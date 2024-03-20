@@ -108,6 +108,7 @@ bitflags = "1.2.1"
 bytes = "1.0"
 cidr = "0.2.1"
 crc32fast = "1"
+const_format = "0.2"
 crossbeam-channel = "0.5"
 endian_trait = { version = "0.6", features = ["arrays"] }
 env_logger = "0.10"
@@ -158,6 +159,7 @@ base64.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
 cidr.workspace = true
+const_format.workspace = true
 crc32fast.workspace = true
 crossbeam-channel.workspace = true
 endian_trait.workspace = true

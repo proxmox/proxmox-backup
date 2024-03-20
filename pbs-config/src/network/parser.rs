@@ -192,7 +192,7 @@ impl<R: BufRead> NetworkParser<R> {
         self.eat(Token::Gateway)?;
         let gateway = self.next_text()?;
 
-        if pbs_api_types::common_regex::IP_REGEX.is_match(&gateway) {
+        if pbs_api_types::IP_REGEX.is_match(&gateway) {
             if gateway.contains(':') {
                 set_gateway_v6(interface, gateway)?;
             } else {
