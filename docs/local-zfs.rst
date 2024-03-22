@@ -121,7 +121,7 @@ Create a new pool with cache (L2ARC)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to use a dedicated cache drive partition to increase
-the performance (use SSD).
+the read performance (use SSDs).
 
 For `<device>`, you can use multiple devices, as is shown in
 "Create a new pool with RAID*".
@@ -134,7 +134,7 @@ Create a new pool with log (ZIL)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to use a dedicated cache drive partition to increase
-the performance (SSD).
+the write performance (use SSDs).
 
 For `<device>`, you can use multiple devices, as is shown in
 "Create a new pool with RAID*".
