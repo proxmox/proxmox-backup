@@ -58,8 +58,8 @@ Ext.define('PBS.config.UserView', {
 
 	    if (selection.length < 1) return;
 
-	    Ext.create('PBS.window.UserPassword', {
-		url: '/api2/extjs/access/users/' + selection[0].data.userid,
+	    Ext.create('Proxmox.window.PasswordEdit', {
+		userid: selection[0].data.userid,
 	    }).show();
 	},
 

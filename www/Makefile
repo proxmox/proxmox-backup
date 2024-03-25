@@ -80,7 +80,6 @@ JSSRC=							\
 	window/SyncJobEdit.js				\
 	window/PruneJobEdit.js				\
 	window/UserEdit.js				\
-	window/UserPassword.js				\
 	window/Settings.js				\
 	window/TokenEdit.js				\
 	window/VerifyJobEdit.js				\
