@@ -50,7 +50,15 @@ rust-proxmox-backup (3.1.5-1) bookworm; urgency=medium
 
   * docs: clarify difference between zfs cache and log
 
- -- Proxmox Support Team <support@proxmox.com>  Mon, 25 Mar 2024 16:33:19 +0100
+  * fix #5188: gui: add copy to clipboard on snapshots
+
+  * api: sync job: log stats for removed vanished entities
+
+  * docs: add examples for --exclude parameter
+
+  * ui: prune job: disallow setting blank schedule
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 25 Mar 2024 16:52:03 +0100
 
 rust-proxmox-backup (3.1.4-1) bookworm; urgency=medium
 
