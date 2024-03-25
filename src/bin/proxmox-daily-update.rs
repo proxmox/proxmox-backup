@@ -118,7 +118,7 @@ fn main() {
         log::LevelFilter::Info,
         Some("proxmox-daily-update"),
     ) {
-        eprintln!("unable to inititialize syslog - {}", err);
+        eprintln!("unable to initialize syslog - {}", err);
     }
 
     let mut rpcenv = CliEnvironment::new();
