@@ -28,7 +28,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match method.handler {
         ApiHandler::Sync(handler) => {
             if let Err(err) = (handler)(param.clone(), method, rpcenv) {
-                log::error!("Error checking subscription - {}", err);
+                log::error!("Error checking subscription - {err}");
             }
         }
         _ => unreachable!(),
@@ -36,7 +36,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let notify = match api2::node::subscription::get_subscription(param, rpcenv) {
         Ok(info) => info.status == SubscriptionStatus::Active,
         Err(err) => {
-            log::error!("Error reading subscription - {}", err);
+            log::error!("Error reading subscription - {err}");
             false
         }
     };
@@ -48,7 +48,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match method.handler {
         ApiHandler::Sync(handler) => match (handler)(param, method, rpcenv) {
             Err(err) => {
-                log::error!("Error triggering apt database update - {}", err);
+                log::error!("Error triggering apt database update - {err}");
             }
             Ok(upid) => wait_for_local_worker(upid.as_str().unwrap()).await?,
         },
@@ -58,7 +58,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match check_acme_certificates(rpcenv).await {
         Ok(()) => (),
         Err(err) => {
-            log::error!("error checking certificates: {}", err);
+            log::error!("error checking certificates: {err}");
         }
     }
 
@@ -118,14 +118,14 @@ fn main() {
         log::LevelFilter::Info,
         Some("proxmox-daily-update"),
     ) {
-        eprintln!("unable to initialize syslog - {}", err);
+        eprintln!("unable to initialize syslog - {err}");
     }
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
     if let Err(err) = proxmox_async::runtime::main(run(&mut rpcenv)) {
-        log::error!("error during update: {}", err);
+        log::error!("error during update: {err}");
         std::process::exit(1);
     }
 }
