@@ -1,3 +1,57 @@
+rust-proxmox-backup (3.1.5-1) bookworm; urgency=medium
+
+  * fix #5190: api: OIDC: accept generic URIs for the ACR value
+
+  * fix #5229: tape: remove max sequence number limit
+
+  * client: add "delete-groups" option to allow one to delete all groups in a
+    hierarchy, which allows removing non-empty namespaces
+
+  * fix #4975: client: add option to ignore E2BIG error flag when restoring,
+    to workaround the interface limitation of the kernel where on some file
+    systems can have a bigger extended attribute (xattr) as the kernel
+    supports reading. This can happen due to the file system having been
+    accessed by another OS version or even an entirely different OS type.
+
+  * docs: clarify prune settings slightly more
+
+  * ui: trim whitespaces when adding a subscription key
+
+  * ui: system config: fix deleting DNS entries
+
+  * fix #5217: api: send missing header when upgrading to HTTP/2 to improve
+    support with reverse proxies like caddy
+
+  * docs: lto barcod generator: disable add button when fields are not valid
+
+  * docs: lto barcode generator: add LTO-9 and WORM types
+
+  * ui: adapt to the API enforcing the not accepting any additional parameters
+    if a API endpoint does not explicitly state that it needs that behavior:
+    - metrics: avoid trying to load existing config, fixes case where a
+      wrong digest was send along, failing the creation of the metrics host
+      entry
+    - avoid sending a 'delete' parameter on create for tape backup jobs, prune
+      settings, sync jobs, verify jobs
+    - user edit: don't send realm property
+
+  * server: sync job: return `PullStats` for pull related methods
+
+  * fix #5285: api: sync job: add job summary to task log
+
+  * ui: tape: transfer: increase timeout to 3 minutes
+
+  * add 'confirmation-password' parameter to user password change API/UI
+
+  * remove datastore from internal cache based on maintenance mode to avoid
+    that a lock file is kept open. With that lock-file closed one can use a
+    offline maintenance mode to cleanly unmount the mount point where such a
+    datastore resides.
+
+  * docs: clarify difference between zfs cache and log
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 25 Mar 2024 16:33:19 +0100
+
 rust-proxmox-backup (3.1.4-1) bookworm; urgency=medium
 
   * api: acme: skip serializing empty 'api' and 'data' option
@@ -44,7 +98,7 @@ rust-proxmox-backup (3.1.3-1) bookworm; urgency=medium
 
   * system report: include prune.cfg
 
-  * fix #4315: jobs: modify GroupFilter so include/exclude is tracked
+  * fix #4315: jobs: modify group filter so include/exclude is tracked
 
   * ui: show if Filter includes or excludes
 
