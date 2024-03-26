@@ -332,6 +332,7 @@ impl HttpClient {
             let interactive = options.interactive;
             let fingerprint_cache = options.fingerprint_cache;
             let prefix = options.prefix.clone();
+            let trust_openssl_valid = Arc::new(Mutex::new(true));
             ssl_connector_builder.set_verify_callback(
                 openssl::ssl::SslVerifyMode::PEER,
                 move |valid, ctx| match Self::verify_callback(
@@ -339,6 +340,7 @@ impl HttpClient {
                     ctx,
                     expected_fingerprint.as_ref(),
                     interactive,
+                    Arc::clone(&trust_openssl_valid),
                 ) {
                     Ok(None) => true,
                     Ok(Some(fingerprint)) => {
@@ -561,8 +563,12 @@ impl HttpClient {
         ctx: &mut X509StoreContextRef,
         expected_fingerprint: Option<&String>,
         interactive: bool,
+        trust_openssl: Arc<Mutex<bool>>,
     ) -> Result<Option<String>, Error> {
-        if openssl_valid {
+        let mut trust_openssl_valid = trust_openssl.lock().unwrap();
+
+        // we can only rely on openssl's prevalidation if we haven't forced it earlier
+        if openssl_valid && *trust_openssl_valid {
             return Ok(None);
         }
 
@@ -571,11 +577,13 @@ impl HttpClient {
             None => bail!("context lacks current certificate."),
         };
 
-        let depth = ctx.error_depth();
-        if depth != 0 {
-            bail!("context depth != 0")
+        // force trust in case of a chain, but set flag to no longer trust prevalidation by openssl
+        if ctx.error_depth() > 0 {
+            *trust_openssl_valid = false;
+            return Ok(None);
         }
 
+        // leaf certificate - if we end up here, we have to verify the fingerprint!
         let fp = match cert.digest(openssl::hash::MessageDigest::sha256()) {
             Ok(fp) => fp,
             Err(err) => bail!("failed to calculate certificate FP - {}", err), // should not happen
