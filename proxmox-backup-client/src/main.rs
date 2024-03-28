@@ -192,6 +192,10 @@ async fn backup_directory<P: AsRef<Path>>(
     pxar_create_options: pbs_client::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
+    if upload_options.fixed_size.is_some() {
+        bail!("cannot backup directory with fixed chunk size!");
+    }
+
     let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), catalog, pxar_create_options)?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
@@ -206,9 +210,6 @@ async fn backup_directory<P: AsRef<Path>>(
         }
     });
 
-    if upload_options.fixed_size.is_some() {
-        bail!("cannot backup directory with fixed chunk size!");
-    }
 
     let stats = client
         .upload_stream(archive_name, stream, upload_options)
