@@ -229,7 +229,7 @@ async fn test_upload_speed(
 
     log::debug!("Connecting to backup server");
     let client = BackupWriter::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &BackupNamespace::root(),

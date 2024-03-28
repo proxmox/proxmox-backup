@@ -834,7 +834,7 @@ async fn create_backup(
 
     let backup_time = backup_time_opt.unwrap_or_else(epoch_i64);
 
-    let client = connect_rate_limited(&repo, rate_limit)?;
+    let http_client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
     let snapshot = BackupDir::from((backup_type, backup_id.to_owned(), backup_time));
@@ -886,7 +886,7 @@ async fn create_backup(
     };
 
     let client = BackupWriter::start(
-        client,
+        &http_client,
         crypt_config.clone(),
         repo.store(),
         &backup_ns,

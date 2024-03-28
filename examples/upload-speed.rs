@@ -18,7 +18,7 @@ async fn upload_speed() -> Result<f64, Error> {
     let backup_time = proxmox_time::epoch_i64();
 
     let client = BackupWriter::start(
-        client,
+        &client,
         None,
         datastore,
         &BackupNamespace::root(),
