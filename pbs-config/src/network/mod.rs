@@ -79,6 +79,14 @@ fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Er
                 writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
             }
         }
+        NetworkInterfaceType::Vlan => {
+            if let Some(vlan_id) = iface.vlan_id {
+                writeln!(w, "\tvlan-id {vlan_id}")?;
+            }
+            if let Some(vlan_raw_device) = &iface.vlan_raw_device {
+                writeln!(w, "\tvlan-raw-device {vlan_raw_device}")?;
+            }
+        }
         _ => {}
     }
 
@@ -578,6 +586,70 @@ iface enp3s0 inet static
 	gateway 10.0.0.1"#
             )
             .trim()
+        );
+    }
+
+    #[test]
+    fn test_write_network_config_vlan_id_in_name() {
+        let iface_name = String::from("vmbr0.100");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Vlan;
+        iface.method = Some(Manual);
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            "iface vmbr0.100 inet manual"
+        );
+    }
+
+    #[test]
+    fn test_write_network_config_vlan_with_raw_device() {
+        let iface_name = String::from("vlan100");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Vlan;
+        iface.vlan_raw_device = Some(String::from("vmbr0"));
+        iface.method = Some(Manual);
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            r#"
+iface vlan100 inet manual
+	vlan-raw-device vmbr0"#
+                .trim()
+        );
+    }
+
+    #[test]
+    fn test_write_network_config_vlan_with_individual_name() {
+        let iface_name = String::from("individual_name");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Vlan;
+        iface.vlan_raw_device = Some(String::from("vmbr0"));
+        iface.vlan_id = Some(100);
+        iface.method = Some(Manual);
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            r#"
+iface individual_name inet manual
+	vlan-id 100
+	vlan-raw-device vmbr0"#
+                .trim()
         );
     }
 }

@@ -224,6 +224,15 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema =
             schema: NETWORK_INTERFACE_ARRAY_SCHEMA,
             optional: true,
         },
+        "vlan-id": {
+            description: "VLAN ID.",
+            type: u16,
+            optional: true,
+        },
+        "vlan-raw-device": {
+            schema: NETWORK_INTERFACE_NAME_SCHEMA,
+            optional: true,
+        },
         bond_mode: {
             type: LinuxBondMode,
             optional: true,
@@ -287,6 +296,12 @@ pub struct Interface {
     /// Enable bridge vlan support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bridge_vlan_aware: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "vlan-id")]
+    pub vlan_id: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "vlan-raw-device")]
+    pub vlan_raw_device: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slaves: Option<Vec<String>>,
@@ -319,6 +334,8 @@ impl Interface {
             mtu: None,
             bridge_ports: None,
             bridge_vlan_aware: None,
+            vlan_id: None,
+            vlan_raw_device: None,
             slaves: None,
             bond_mode: None,
             bond_primary: None,
