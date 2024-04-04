@@ -503,3 +503,81 @@ pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<St
         .map(|port| format!("{}{}", prefix, port))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use NetworkConfigMethod::*;
+    use NetworkInterfaceType::*;
+    use NetworkOrderEntry::*;
+
+    #[test]
+    fn test_write_network_config_manual() {
+        let iface_name = String::from("enp3s0");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Eth;
+        iface.method = Some(Manual);
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            r#"iface enp3s0 inet manual"#
+        );
+    }
+
+    #[test]
+    fn test_write_network_config_static() {
+        let iface_name = String::from("enp3s0");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Eth;
+        iface.method = Some(Static);
+        iface.cidr = Some(String::from("10.0.0.100/16"));
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            format!(
+                r#"
+iface enp3s0 inet static
+	address 10.0.0.100/16"#
+            )
+            .trim()
+        );
+    }
+
+    #[test]
+    fn test_write_network_config_static_with_gateway() {
+        let iface_name = String::from("enp3s0");
+        let mut iface = Interface::new(iface_name.clone());
+        iface.interface_type = Eth;
+        iface.method = Some(Static);
+        iface.cidr = Some(String::from("10.0.0.100/16"));
+        iface.gateway = Some(String::from("10.0.0.1"));
+        iface.active = true;
+
+        let nw_config = NetworkConfig {
+            interfaces: BTreeMap::from([(iface_name.clone(), iface)]),
+            order: vec![Iface(iface_name.clone())],
+        };
+        assert_eq!(
+            String::try_from(nw_config).unwrap().trim(),
+            format!(
+                r#"
+iface enp3s0 inet static
+	address 10.0.0.100/16
+	gateway 10.0.0.1"#
+            )
+            .trim()
+        );
+    }
+}
