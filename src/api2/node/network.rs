@@ -227,9 +227,9 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
                 optional: true,
             },
             bridge_vlan_aware: {
-	        description: "Enable bridge vlan support.",
-	        type: bool,
-	        optional: true,
+                description: "Enable bridge vlan support.",
+                type: bool,
+                optional: true,
             },
             bond_mode: {
                 type: LinuxBondMode,
@@ -503,9 +503,9 @@ pub enum DeletableProperty {
                 optional: true,
             },
             bridge_vlan_aware: {
-	        description: "Enable bridge vlan support.",
-	        type: bool,
-	        optional: true,
+                description: "Enable bridge vlan support.",
+                type: bool,
+                optional: true,
             },
             bond_mode: {
                 type: LinuxBondMode,
