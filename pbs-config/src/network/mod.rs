@@ -251,7 +251,7 @@ impl NetworkConfig {
     }
 
     /// Check if ports are used only once
-    pub fn check_port_usage(&self) -> Result<(), Error> {
+    fn check_port_usage(&self) -> Result<(), Error> {
         let mut used_ports = HashMap::new();
         let mut check_port_usage = |iface, ports: &Vec<String>| {
             for port in ports.iter() {
@@ -280,7 +280,7 @@ impl NetworkConfig {
     }
 
     /// Check if child mtu is less or equal than parent mtu
-    pub fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
+    fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
         let parent = self
             .interfaces
             .get(parent_name)
@@ -320,7 +320,7 @@ impl NetworkConfig {
     }
 
     /// Check if bond slaves exists
-    pub fn check_bond_slaves(&self) -> Result<(), Error> {
+    fn check_bond_slaves(&self) -> Result<(), Error> {
         for (iface, interface) in self.interfaces.iter() {
             if let Some(slaves) = &interface.slaves {
                 for slave in slaves.iter() {
@@ -348,7 +348,7 @@ impl NetworkConfig {
     }
 
     /// Check if bridge ports exists
-    pub fn check_bridge_ports(&self) -> Result<(), Error> {
+    fn check_bridge_ports(&self) -> Result<(), Error> {
         lazy_static! {
             static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^(\S+)\.(\d+)$").unwrap();
         }
@@ -372,7 +372,7 @@ impl NetworkConfig {
         Ok(())
     }
 
-    pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
+    fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
         self.check_port_usage()?;
         self.check_bond_slaves()?;
         self.check_bridge_ports()?;

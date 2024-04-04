@@ -487,11 +487,11 @@ impl<R: BufRead> NetworkParser<R> {
         &mut self,
         existing_interfaces: Option<&HashMap<String, bool>>,
     ) -> Result<NetworkConfig, Error> {
-        self._parse_interfaces(existing_interfaces)
+        self.do_parse_interfaces(existing_interfaces)
             .map_err(|err| format_err!("line {}: {}", self.line_nr, err))
     }
 
-    pub fn _parse_interfaces(
+    fn do_parse_interfaces(
         &mut self,
         existing_interfaces: Option<&HashMap<String, bool>>,
     ) -> Result<NetworkConfig, Error> {
