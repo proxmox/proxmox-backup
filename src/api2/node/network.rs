@@ -12,7 +12,9 @@ use pbs_api_types::{
     NETWORK_INTERFACE_ARRAY_SCHEMA, NETWORK_INTERFACE_LIST_SCHEMA, NETWORK_INTERFACE_NAME_SCHEMA,
     NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
-use pbs_config::network::{self, NetworkConfig};
+use pbs_config::network::{
+    self, parse_vlan_id_from_name, parse_vlan_raw_device_from_name, NetworkConfig,
+};
 
 use proxmox_rest_server::WorkerTask;
 
@@ -231,6 +233,15 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
                 type: bool,
                 optional: true,
             },
+            "vlan-id": {
+                description: "VLAN ID.",
+                type: u16,
+                optional: true,
+            },
+            "vlan-raw-device": {
+                schema: NETWORK_INTERFACE_NAME_SCHEMA,
+                optional: true,
+            },
             bond_mode: {
                 type: LinuxBondMode,
                 optional: true,
@@ -269,6 +280,8 @@ pub fn create_interface(
     mtu: Option<u64>,
     bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
+    vlan_id: Option<u16>,
+    vlan_raw_device: Option<String>,
     bond_mode: Option<LinuxBondMode>,
     bond_primary: Option<String>,
     bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
@@ -372,6 +385,24 @@ pub fn create_interface(
                 let slaves = split_interface_list(&slaves)?;
                 set_bond_slaves(&mut interface, slaves)?;
             }
+        }
+        NetworkInterfaceType::Vlan => {
+            if vlan_id.is_none() && parse_vlan_id_from_name(&iface).is_none() {
+                bail!("vlan-id must be set");
+            }
+            interface.vlan_id = vlan_id;
+
+            if let Some(dev) = vlan_raw_device
+                .as_deref()
+                .or_else(|| parse_vlan_raw_device_from_name(&iface))
+            {
+                if !config.interfaces.contains_key(dev) {
+                    bail!("vlan-raw-device {dev} does not exist");
+                }
+            } else {
+                bail!("vlan-raw-device must be set");
+            }
+            interface.vlan_raw_device = vlan_raw_device;
         }
         _ => bail!(
             "creating network interface type '{:?}' is not supported",
@@ -507,6 +538,15 @@ pub enum DeletableProperty {
                 type: bool,
                 optional: true,
             },
+            "vlan-id": {
+                description: "VLAN ID.",
+                type: u16,
+                optional: true,
+            },
+            "vlan-raw-device": {
+                schema: NETWORK_INTERFACE_NAME_SCHEMA,
+                optional: true,
+            },
             bond_mode: {
                 type: LinuxBondMode,
                 optional: true,
@@ -557,6 +597,8 @@ pub fn update_interface(
     mtu: Option<u64>,
     bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
+    vlan_id: Option<u16>,
+    vlan_raw_device: Option<String>,
     bond_mode: Option<LinuxBondMode>,
     bond_primary: Option<String>,
     bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
@@ -579,6 +621,15 @@ pub fn update_interface(
     }
     if gateway6.is_some() {
         check_duplicate_gateway_v6(&config, &iface)?;
+    }
+
+    if let Some(dev) = vlan_raw_device
+        .as_deref()
+        .or_else(|| parse_vlan_raw_device_from_name(&iface))
+    {
+        if !config.interfaces.contains_key(dev) {
+            bail!("vlan-raw-device {dev} does not exist");
+        }
     }
 
     let interface = config.lookup_mut(&iface)?;
@@ -732,6 +783,13 @@ pub fn update_interface(
         interface.method6 = Some(NetworkConfigMethod::Static);
     } else {
         interface.method6 = Some(NetworkConfigMethod::Manual);
+    }
+
+    if vlan_id.is_some() {
+        interface.vlan_id = vlan_id;
+    }
+    if vlan_raw_device.is_some() {
+        interface.vlan_raw_device = vlan_raw_device;
     }
 
     network::save_config(&config)?;

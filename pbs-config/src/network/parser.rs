@@ -1,3 +1,5 @@
+use crate::network::VLAN_INTERFACE_REGEX;
+
 use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
 use std::iter::{Iterator, Peekable};
@@ -536,7 +538,6 @@ impl<R: BufRead> NetworkParser<R> {
 
         lazy_static! {
             static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
-            static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+|vlan\d+$").unwrap();
         }
 
         if let Some(existing_interfaces) = existing_interfaces {

@@ -25,6 +25,8 @@ use crate::{open_backup_lockfile, BackupLockGuard};
 
 lazy_static! {
     static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
+    static ref VLAN_INTERFACE_REGEX: Regex =
+        Regex::new(r"^(?P<vlan_raw_device>\S+)\.(?P<vlan_id>\d+)|vlan(?P<vlan_id2>\d+)$").unwrap();
 }
 
 pub fn is_physical_nic(iface: &str) -> bool {
@@ -39,6 +41,21 @@ pub fn bond_mode_from_str(s: &str) -> Result<LinuxBondMode, Error> {
 pub fn bond_xmit_hash_policy_from_str(s: &str) -> Result<BondXmitHashPolicy, Error> {
     BondXmitHashPolicy::deserialize(s.into_deserializer())
         .map_err(|_: value::Error| format_err!("invalid bond_xmit_hash_policy '{}'", s))
+}
+
+pub fn parse_vlan_id_from_name(iface_name: &str) -> Option<u16> {
+    VLAN_INTERFACE_REGEX.captures(iface_name).and_then(|cap| {
+        cap.name("vlan_id")
+            .or(cap.name("vlan_id2"))
+            .and_then(|id| id.as_str().parse::<u16>().ok())
+    })
+}
+
+pub fn parse_vlan_raw_device_from_name(iface_name: &str) -> Option<&str> {
+    VLAN_INTERFACE_REGEX
+        .captures(iface_name)
+        .and_then(|cap| cap.name("vlan_raw_device"))
+        .map(Into::into)
 }
 
 // Write attributes not depending on address family
@@ -651,5 +668,23 @@ iface individual_name inet manual
 	vlan-raw-device vmbr0"#
                 .trim()
         );
+    }
+
+    #[test]
+    fn test_vlan_parse_vlan_id_from_name() {
+        assert_eq!(parse_vlan_id_from_name("vlan100"), Some(100));
+        assert_eq!(parse_vlan_id_from_name("vlan"), None);
+        assert_eq!(parse_vlan_id_from_name("arbitrary"), None);
+        assert_eq!(parse_vlan_id_from_name("vmbr0.100"), Some(100));
+        assert_eq!(parse_vlan_id_from_name("vmbr0"), None);
+        // assert_eq!(parse_vlan_id_from_name("vmbr0.1.400"), Some(400));   // NOTE ifupdown2 does actually support this
+    }
+
+    #[test]
+    fn test_vlan_parse_vlan_raw_device_from_name() {
+        assert_eq!(parse_vlan_raw_device_from_name("vlan100"), None);
+        assert_eq!(parse_vlan_raw_device_from_name("arbitrary"), None);
+        assert_eq!(parse_vlan_raw_device_from_name("vmbr0"), None);
+        assert_eq!(parse_vlan_raw_device_from_name("vmbr0.200"), Some("vmbr0"));
     }
 }
