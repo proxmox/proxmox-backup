@@ -24,6 +24,8 @@ pub enum Token {
     MTU,
     BridgePorts,
     BridgeVlanAware,
+    VlanId,
+    VlanRawDevice,
     BondSlaves,
     BondMode,
     BondPrimary,
@@ -50,6 +52,10 @@ lazy_static! {
         map.insert("bridge_ports", Token::BridgePorts);
         map.insert("bridge-vlan-aware", Token::BridgeVlanAware);
         map.insert("bridge_vlan_aware", Token::BridgeVlanAware);
+        map.insert("vlan-id", Token::VlanId);
+        map.insert("vlan_id", Token::VlanId);
+        map.insert("vlan-raw-device", Token::VlanRawDevice);
+        map.insert("vlan_raw_device", Token::VlanRawDevice);
         map.insert("bond-slaves", Token::BondSlaves);
         map.insert("bond_slaves", Token::BondSlaves);
         map.insert("bond-mode", Token::BondMode);

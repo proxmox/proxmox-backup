@@ -361,6 +361,20 @@ impl<R: BufRead> NetworkParser<R> {
                     interface.bond_xmit_hash_policy = Some(policy);
                     self.eat(Token::Newline)?;
                 }
+                Token::VlanId => {
+                    self.eat(Token::VlanId)?;
+                    let vlan_id = self.next_text()?.parse()?;
+                    interface.vlan_id = Some(vlan_id);
+                    set_interface_type(interface, NetworkInterfaceType::Vlan)?;
+                    self.eat(Token::Newline)?;
+                }
+                Token::VlanRawDevice => {
+                    self.eat(Token::VlanRawDevice)?;
+                    let vlan_raw_device = self.next_text()?;
+                    interface.vlan_raw_device = Some(vlan_raw_device);
+                    set_interface_type(interface, NetworkInterfaceType::Vlan)?;
+                    self.eat(Token::Newline)?;
+                }
                 _ => {
                     // parse addon attributes
                     let option = self.parse_to_eol()?;
@@ -522,7 +536,7 @@ impl<R: BufRead> NetworkParser<R> {
 
         lazy_static! {
             static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
-            static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+$").unwrap();
+            static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+|vlan\d+$").unwrap();
         }
 
         if let Some(existing_interfaces) = existing_interfaces {
@@ -747,5 +761,86 @@ mod test {
         assert_eq!(output, expected);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_network_config_parser_vlan_id_in_name() {
+        let input = "iface vmbr0.100 inet static manual";
+        let mut parser = NetworkParser::new(input.as_bytes());
+        let config = parser.parse_interfaces(None).unwrap();
+
+        let iface = config.interfaces.get("vmbr0.100").unwrap();
+        assert_eq!(iface.interface_type, NetworkInterfaceType::Vlan);
+        assert_eq!(iface.vlan_raw_device, None);
+        assert_eq!(iface.vlan_id, None);
+    }
+
+    #[test]
+    fn test_network_config_parser_vlan_with_raw_device() {
+        let input = r#"
+iface vlan100 inet manual
+	vlan-raw-device vmbr0"#;
+
+        let mut parser = NetworkParser::new(input.as_bytes());
+        let config = parser.parse_interfaces(None).unwrap();
+
+        let iface = config.interfaces.get("vlan100").unwrap();
+        assert_eq!(iface.interface_type, NetworkInterfaceType::Vlan);
+        assert_eq!(iface.vlan_raw_device, Some(String::from("vmbr0")));
+        assert_eq!(iface.vlan_id, None);
+    }
+
+    #[test]
+    fn test_network_config_parser_vlan_with_raw_device_static() {
+        let input = r#"
+iface vlan100 inet static
+	vlan-raw-device vmbr0
+	address 10.0.0.100/16"#;
+
+        let mut parser = NetworkParser::new(input.as_bytes());
+        let config = parser.parse_interfaces(None).unwrap();
+
+        let iface = config.interfaces.get("vlan100").unwrap();
+        assert_eq!(iface.interface_type, NetworkInterfaceType::Vlan);
+        assert_eq!(iface.vlan_raw_device, Some(String::from("vmbr0")));
+        assert_eq!(iface.vlan_id, None);
+        assert_eq!(iface.method, Some(NetworkConfigMethod::Static));
+        assert_eq!(iface.cidr, Some(String::from("10.0.0.100/16")));
+    }
+
+    #[test]
+    fn test_network_config_parser_vlan_individual_name() {
+        let input = r#"
+iface individual_name inet manual
+	vlan-id 100
+	vlan-raw-device vmbr0"#;
+
+        let mut parser = NetworkParser::new(input.as_bytes());
+        let config = parser.parse_interfaces(None).unwrap();
+
+        let iface = config.interfaces.get("individual_name").unwrap();
+        assert_eq!(iface.interface_type, NetworkInterfaceType::Vlan);
+        assert_eq!(iface.vlan_raw_device, Some(String::from("vmbr0")));
+        assert_eq!(iface.vlan_id, Some(100));
+    }
+
+    #[test]
+    fn test_network_config_parser_vlan_individual_name_static() {
+        let input = r#"
+iface individual_name inet static
+	vlan-id 100
+	vlan-raw-device vmbr0
+	address 10.0.0.100/16
+"#;
+
+        let mut parser = NetworkParser::new(input.as_bytes());
+        let config = parser.parse_interfaces(None).unwrap();
+
+        let iface = config.interfaces.get("individual_name").unwrap();
+        assert_eq!(iface.interface_type, NetworkInterfaceType::Vlan);
+        assert_eq!(iface.vlan_raw_device, Some(String::from("vmbr0")));
+        assert_eq!(iface.vlan_id, Some(100));
+        assert_eq!(iface.method, Some(NetworkConfigMethod::Static));
+        assert_eq!(iface.cidr, Some(String::from("10.0.0.100/16")));
     }
 }
