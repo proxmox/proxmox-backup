@@ -48,6 +48,7 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 		    fieldLabel: gettext('Max Depth'),
 		    disabled: true,
 		    name: 'max-depth',
+		    deleteEmpty: false,
 		},
 		{
 		    xtype: 'pbsMediaPoolSelector',
