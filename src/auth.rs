@@ -405,7 +405,7 @@ impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
     /// Access the TFA config with an exclusive lock.
     fn tfa_config_write_lock(&self) -> Result<Box<dyn LockedTfaConfig>, Error> {
         Ok(Box::new(PbsLockedTfaConfig {
-            _lock: crate::config::tfa::read_lock()?,
+            _lock: crate::config::tfa::write_lock()?,
             config: crate::config::tfa::read()?,
         }))
     }
