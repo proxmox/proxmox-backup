@@ -1,7 +1,7 @@
 Ext.define('pbs-gc-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'store', 'last-run-upid', 'removed-chunks', 'pending-chunks', 'schedule',
+	'store', 'last-run-upid', 'removed-bytes', 'pending-bytes', 'schedule',
 	'next-run', 'last-run-endtime', 'last-run-state',
 	{
 	    name: 'duration',
@@ -202,6 +202,20 @@ Ext.define('PBS.config.GCJobView', {
 	    renderer: PBS.Utils.render_next_task_run,
 	    width: 150,
 	    sortable: true,
+	},
+	{
+	    header: gettext('Removed Data'),
+	    dataIndex: 'removed-bytes',
+	    renderer: (value) => value !== undefined ?
+		Proxmox.Utils.format_size(value, true) : "-",
+	    sortable: false,
+	},
+	{
+	    header: gettext('Pending Data'),
+	    dataIndex: 'pending-bytes',
+	    renderer: (value) => value !== undefined ?
+		Proxmox.Utils.format_size(value, true) : "-",
+	    sortable: false,
 	},
     ],
 
