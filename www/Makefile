@@ -63,6 +63,7 @@ JSSRC=							\
 	config/SyncView.js				\
 	config/VerifyView.js				\
 	config/PruneView.js				\
+	config/GCView.js				\
 	config/WebauthnView.js				\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
@@ -79,6 +80,7 @@ JSSRC=							\
 	window/NotifyOptions.js				\
 	window/SyncJobEdit.js				\
 	window/PruneJobEdit.js				\
+	window/GCJobEdit.js				\
 	window/UserEdit.js				\
 	window/Settings.js				\
 	window/TokenEdit.js				\

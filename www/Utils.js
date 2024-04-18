@@ -199,12 +199,12 @@ Ext.define('PBS.Utils', {
 	return fingerprint.substring(0, 23);
     },
 
-    render_task_status: function(value, metadata, record) {
-	if (!record.data['last-run-upid']) {
+    render_task_status: function(value, metadata, record, rowIndex, colIndex, store) {
+	if (!record.data['last-run-upid'] && !store.getById('last-run-upid')?.data.value) {
 	    return '-';
 	}
 
-	if (!record.data['last-run-endtime']) {
+	if (!record.data['last-run-endtime'] && !store.getById('last-run-endtime')?.data.value) {
 	    metadata.tdCls = 'x-grid-row-loading';
 	    return '';
 	}

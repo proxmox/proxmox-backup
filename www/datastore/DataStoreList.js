@@ -239,8 +239,8 @@ Ext.define('PBS.datastore.DataStores', {
 	},
 	{
 	    iconCls: 'fa fa-trash-o',
-	    itemId: 'prunejobs',
-	    xtype: 'pbsPruneJobView',
+	    itemId: 'prunegc',
+	    xtype: 'pbsDatastorePruneAndGC',
 	},
 	{
 	    iconCls: 'fa fa-check-circle',
