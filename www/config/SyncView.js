@@ -3,7 +3,7 @@ Ext.define('pbs-sync-jobs-status', {
     fields: [
 	'id', 'owner', 'remote', 'remote-store', 'remote-ns', 'store', 'ns',
 	'schedule', 'group-filter', 'next-run', 'last-run-upid', 'last-run-state',
-	'last-run-endtime', 'transfer-last',
+	'last-run-endtime', 'transfer-last', 'max-depth',
 	{
 	    name: 'duration',
 	    calculate: function(data) {
