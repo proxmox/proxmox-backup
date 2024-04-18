@@ -224,7 +224,7 @@ Ext.define('PBS.config.SyncJobView', {
 	    renderer: PBS.Utils.render_optional_namespace,
 	},
 	{
-	    header: gettext('Max. Recursion'),
+	    header: gettext('Max. Depth'),
 	    dataIndex: 'max-depth',
 	    width: 10,
 	    sortable: true,
