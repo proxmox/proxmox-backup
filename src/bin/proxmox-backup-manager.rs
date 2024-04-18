@@ -93,6 +93,35 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+   input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// List garbage collection job status for all datastores, including datastores without gc jobs.
+async fn garbage_collection_list_jobs(param: Value) -> Result<Value, Error> {
+    let output_format = get_output_format(&param);
+
+    let client = connect_to_localhost()?;
+
+    let path = "api2/json/admin/gc";
+
+    let mut result = client.get(&path, None).await?;
+    let mut data = result["data"].take();
+    let return_type = &api2::admin::gc::API_METHOD_LIST_ALL_GC_JOBS.returns;
+
+    let options = default_table_format_options();
+
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn garbage_collection_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert(
@@ -106,6 +135,10 @@ fn garbage_collection_commands() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
                 .arg_param(&["store"])
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name),
+        )
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_GARBAGE_COLLECTION_LIST_JOBS),
         );
 
     cmd_def.into()
