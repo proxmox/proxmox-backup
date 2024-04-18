@@ -204,4 +204,18 @@ Ext.define('PBS.config.GCJobView', {
 	    sortable: true,
 	},
     ],
+
+    initComponent: function() {
+	let me = this;
+	let hideLocalDatastore = !!me.datastore;
+
+	for (let column of me.columns) {
+	    if (column.dataIndex === 'store') {
+		column.hidden = hideLocalDatastore;
+		break;
+	    }
+	}
+
+	me.callParent();
+    },
 });
