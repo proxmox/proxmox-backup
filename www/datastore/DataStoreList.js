@@ -231,16 +231,15 @@ Ext.define('PBS.datastore.DataStores', {
 	    xtype: 'pbsDataStoreList',
 	    iconCls: 'fa fa-book',
 	},
-
-	{
-	    iconCls: 'fa fa-refresh',
-	    itemId: 'syncjobs',
-	    xtype: 'pbsSyncJobView',
-	},
 	{
 	    iconCls: 'fa fa-trash-o',
 	    itemId: 'prunegc',
 	    xtype: 'pbsPruneAndGC',
+	},
+	{
+	    iconCls: 'fa fa-refresh',
+	    itemId: 'syncjobs',
+	    xtype: 'pbsSyncJobView',
 	},
 	{
 	    iconCls: 'fa fa-check-circle',
