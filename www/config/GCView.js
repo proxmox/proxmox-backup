@@ -212,8 +212,8 @@ Ext.define('PBS.config.GCJobView', {
 	{
 	    header: gettext('Removed Data'),
 	    dataIndex: 'removed-bytes',
-	    renderer: (value) => value !== undefined ?
-		Proxmox.Utils.format_size(value, true) : "-",
+	    renderer: (value) => value !== undefined
+		? Proxmox.Utils.format_size(value, true) : "-",
 	    sortable: false,
 	    minWidth: 85,
 	    flex: 1,
@@ -221,8 +221,8 @@ Ext.define('PBS.config.GCJobView', {
 	{
 	    header: gettext('Pending Data'),
 	    dataIndex: 'pending-bytes',
-	    renderer: (value) => value !== undefined ?
-		Proxmox.Utils.format_size(value, true) : "-",
+	    renderer: (value) => value !== undefined
+		? Proxmox.Utils.format_size(value, true) : "-",
 	    sortable: false,
 	    minWidth: 80,
 	    flex: 3,
