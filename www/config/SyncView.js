@@ -226,7 +226,7 @@ Ext.define('PBS.config.SyncJobView', {
 	{
 	    header: gettext('Max. Depth'),
 	    dataIndex: 'max-depth',
-	    width: 10,
+	    width: 100,
 	    sortable: true,
 	},
 	{
