@@ -1309,6 +1309,52 @@ pub struct GarbageCollectionStatus {
 
 #[api(
     properties: {
+        "last-run-upid": {
+            optional: true,
+            type: UPID,
+        },
+    },
+)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// Garbage Collection general info
+pub struct GarbageCollectionJobStatus {
+    /// Datastore
+    pub store: String,
+    /// upid of the last run gc job
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_run_upid: Option<String>,
+    /// Sum of removed bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removed_bytes: Option<u64>,
+    /// Number of removed chunks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removed_chunks: Option<usize>,
+    /// Sum of pending bytes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pending_bytes: Option<u64>,
+    /// Number of pending chunks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pending_chunks: Option<usize>,
+    /// Schedule of the gc job
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<String>,
+    /// Time of the next gc run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_run: Option<i64>,
+    /// Endtime of the last gc run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_run_endtime: Option<i64>,
+    /// State of the last gc run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_run_state: Option<String>,
+    /// Duration of last gc run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<i64>,
+}
+
+#[api(
+    properties: {
         "gc-status": {
             type: GarbageCollectionStatus,
             optional: true,

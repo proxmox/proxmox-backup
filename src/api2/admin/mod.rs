@@ -5,6 +5,7 @@ use proxmox_router::{Router, SubdirMap};
 use proxmox_sortable_macro::sortable;
 
 pub mod datastore;
+pub mod gc;
 pub mod metrics;
 pub mod namespace;
 pub mod prune;
@@ -17,6 +18,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("datastore", &datastore::ROUTER),
     ("metrics", &metrics::ROUTER),
     ("prune", &prune::ROUTER),
+    ("gc", &gc::ROUTER),
     ("sync", &sync::ROUTER),
     ("traffic-control", &traffic_control::ROUTER),
     ("verify", &verify::ROUTER),

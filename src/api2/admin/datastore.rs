@@ -27,18 +27,20 @@ use proxmox_sys::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
 };
 use proxmox_sys::{task_log, task_warn};
+use proxmox_time::CalendarEvent;
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
     print_ns_and_snapshot, print_store_and_ns, Authid, BackupContent, BackupNamespace, BackupType,
-    Counts, CryptMode, DataStoreListItem, DataStoreStatus, GarbageCollectionStatus, GroupListItem,
+    Counts, CryptMode, DataStoreConfig, DataStoreListItem, DataStoreStatus,
+    GarbageCollectionJobStatus, GarbageCollectionStatus, GroupListItem, JobScheduleStatus,
     KeepOptions, Operation, PruneJobOptions, RRDMode, RRDTimeFrame, SnapshotListItem,
     SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
     BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
     MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID,
     UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
@@ -67,7 +69,7 @@ use crate::backup::{
     ListAccessibleBackupGroups, NS_PRIVS_OK,
 };
 
-use crate::server::jobstate::Job;
+use crate::server::jobstate::{compute_schedule_status, Job, JobState};
 
 const GROUP_NOTES_FILE_NAME: &str = "notes";
 
@@ -1239,6 +1241,125 @@ pub fn garbage_collection_status(
 }
 
 #[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: GarbageCollectionJobStatus,
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
+    },
+)]
+/// Garbage collection status.
+pub fn garbage_collection_job_status(
+    store: String,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<GarbageCollectionJobStatus, Error> {
+    let (config, _) = pbs_config::datastore::config()?;
+    let store_config: DataStoreConfig = config.lookup("datastore", &store)?;
+
+    let mut info = GarbageCollectionJobStatus {
+        store: store.clone(),
+        schedule: store_config.gc_schedule,
+        ..Default::default()
+    };
+
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+    let status_in_memory = datastore.last_gc_status();
+    let state_file = JobState::load("garbage_collection", &store)
+        .map_err(|err| {
+            log::error!(
+                "could not open statefile for {:?}: {}",
+                info.last_run_upid,
+                err
+            )
+        })
+        .ok();
+
+    let mut selected_upid = None;
+    if status_in_memory.upid.is_some() {
+        selected_upid = status_in_memory.upid;
+    } else if let Some(JobState::Finished { upid, .. }) = &state_file {
+        selected_upid = Some(upid.to_owned());
+    }
+
+    info.last_run_upid = selected_upid.clone();
+
+    match selected_upid {
+        Some(upid) => {
+            info.removed_bytes = Some(status_in_memory.removed_bytes);
+            info.removed_chunks = Some(status_in_memory.removed_chunks);
+            info.pending_bytes = Some(status_in_memory.pending_bytes);
+            info.pending_chunks = Some(status_in_memory.pending_chunks);
+
+            let mut computed_schedule: JobScheduleStatus = JobScheduleStatus::default();
+            let mut duration = None;
+            if let Some(state) = state_file {
+                if let Ok(cs) = compute_schedule_status(&state, info.last_run_upid.as_deref()) {
+                    computed_schedule = cs;
+                }
+            }
+
+            if let Some(endtime) = computed_schedule.last_run_endtime {
+                computed_schedule.next_run = info
+                    .schedule
+                    .as_ref()
+                    .and_then(|s| {
+                        s.parse::<CalendarEvent>()
+                            .map_err(|err| log::error!("{err}"))
+                            .ok()
+                    })
+                    .and_then(|e| {
+                        e.compute_next_event(endtime)
+                            .map_err(|err| log::error!("{err}"))
+                            .ok()
+                    })
+                    .and_then(|ne| ne);
+
+                if let Ok(parsed_upid) = upid.parse::<UPID>() {
+                    duration = Some(endtime - parsed_upid.starttime);
+                }
+            }
+
+            info.next_run = computed_schedule.next_run;
+            info.last_run_endtime = computed_schedule.last_run_endtime;
+            info.last_run_state = computed_schedule.last_run_state;
+            info.duration = duration;
+        }
+        None => {
+            if let Some(schedule) = &info.schedule {
+                info.next_run = schedule
+                    .parse::<CalendarEvent>()
+                    .map_err(|err| log::error!("{err}"))
+                    .ok()
+                    .and_then(|e| {
+                        e.compute_next_event(proxmox_time::epoch_i64())
+                            .map_err(|err| log::error!("{err}"))
+                            .ok()
+                    })
+                    .and_then(|ne| ne);
+
+                if let Ok(event) = schedule.parse::<CalendarEvent>() {
+                    if let Ok(next_event) = event.compute_next_event(proxmox_time::epoch_i64()) {
+                        info.next_run = next_event;
+                    }
+                }
+            } else {
+                return Ok(info);
+            }
+        }
+    }
+
+    Ok(info)
+}
+
+#[api(
     returns: {
         description: "List the accessible datastores.",
         type: Array,
@@ -2303,6 +2424,10 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_GARBAGE_COLLECTION_STATUS)
             .post(&API_METHOD_START_GARBAGE_COLLECTION),
+    ),
+    (
+        "gc-job-status",
+        &Router::new().get(&API_METHOD_GARBAGE_COLLECTION_JOB_STATUS),
     ),
     (
         "group-notes",
