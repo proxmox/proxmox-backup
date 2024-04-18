@@ -1,9 +1,11 @@
 use std::borrow::Borrow;
+use std::time::Duration;
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 use serde_json::Value;
 
 use proxmox_human_byte::HumanByte;
+use proxmox_time::TimeSpan;
 
 pub fn strip_server_file_extension(name: &str) -> &str {
     if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
@@ -63,4 +65,14 @@ pub fn render_bytes_human_readable(value: &Value, _record: &Value) -> Result<Str
         None => value.to_string(),
     };
     Ok(text)
+}
+
+pub fn render_duration(val: &Value, _record: &Value) -> Result<String, Error> {
+    if val.is_null() {
+        return Ok(String::new());
+    }
+    let duration = val.as_u64().context("not a number")?;
+    let time_span = TimeSpan::from(Duration::from_secs(duration));
+
+    Ok(format!("{time_span}"))
 }

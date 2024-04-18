@@ -115,7 +115,36 @@ async fn garbage_collection_list_jobs(param: Value) -> Result<Value, Error> {
     let mut data = result["data"].take();
     let return_type = &api2::admin::gc::API_METHOD_LIST_ALL_GC_JOBS.returns;
 
-    let options = default_table_format_options();
+    use pbs_tools::format::{render_bytes_human_readable, render_duration, render_epoch};
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("store"))
+        .column(
+            ColumnConfig::new("last-run-endtime")
+                .right_align(false)
+                .renderer(render_epoch),
+        )
+        .column(
+            ColumnConfig::new("duration")
+                .right_align(false)
+                .renderer(render_duration),
+        )
+        .column(
+            ColumnConfig::new("removed-bytes")
+                .right_align(false)
+                .renderer(render_bytes_human_readable),
+        )
+        .column(
+            ColumnConfig::new("pending-bytes")
+                .right_align(false)
+                .renderer(render_bytes_human_readable),
+        )
+        .column(ColumnConfig::new("last-run-state"))
+        .column(ColumnConfig::new("schedule"))
+        .column(
+            ColumnConfig::new("next-run")
+                .right_align(false)
+                .renderer(render_epoch),
+        );
 
     format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
