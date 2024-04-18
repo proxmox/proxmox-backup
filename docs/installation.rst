@@ -50,6 +50,22 @@ It includes the following:
 .. note:: During the installation process, the complete server
    is used by default and all existing data is removed.
 
+Install `Proxmox Backup`_ Server Unattended
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It is possible to install {pve} automatically in an unattended manner. This
+enables you to fully automate the setup process on bare-metal. Once the
+installation is complete and the host has booted up, automation tools like
+Ansible can be used to further configure the installation.
+
+The necessary options for the installer must be provided in an answer file.
+This file allows the use of filter rules to determine which disks and network
+cards should be used.
+
+To use the automated installation, it is first necessary to prepare an
+installation ISO.  For more details and information on the unattended
+installation see `our wiki
+<https://pve.proxmox.com/wiki/Automated_Installation>`_.
+
 
 Install `Proxmox Backup`_ Server on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
