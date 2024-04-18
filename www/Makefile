@@ -68,6 +68,7 @@ JSSRC=							\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
 	config/MetricServerView.js			\
+	config/PruneAndGC.js				\
 	window/ACLEdit.js				\
 	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
@@ -106,7 +107,6 @@ JSSRC=							\
 	Subscription.js					\
 	datastore/Summary.js				\
 	datastore/Notes.js				\
-	datastore/PruneAndGC.js				\
 	datastore/Prune.js				\
 	datastore/Content.js				\
 	datastore/OptionView.js				\

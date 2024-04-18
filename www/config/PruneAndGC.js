@@ -1,6 +1,6 @@
-Ext.define('PBS.Datastore.PruneAndGC', {
+Ext.define('PBS.config.PruneAndGC', {
     extend: 'Ext.panel.Panel',
-    alias: 'widget.pbsDatastorePruneAndGC',
+    alias: 'widget.pbsPruneAndGC',
     title: gettext('Prune & GC Jobs'),
 
     mixins: ['Proxmox.Mixin.CBind'],
