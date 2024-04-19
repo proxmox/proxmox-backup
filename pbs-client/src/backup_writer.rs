@@ -573,9 +573,8 @@ impl BackupWriter {
             .download("previous", Some(param), &mut tmpfile)
             .await?;
 
-        let index = DynamicIndexReader::new(tmpfile).map_err(|err| {
-            format_err!("unable to read dynamic index '{archive_name}' - {err}")
-        })?;
+        let index = DynamicIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read dynamic index '{archive_name}' - {err}"))?;
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
         manifest.verify_file(archive_name, &csum, size)?;
