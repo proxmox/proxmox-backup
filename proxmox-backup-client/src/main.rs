@@ -210,7 +210,6 @@ async fn backup_directory<P: AsRef<Path>>(
         }
     });
 
-
     let stats = client
         .upload_stream(archive_name, stream, upload_options)
         .await?;
