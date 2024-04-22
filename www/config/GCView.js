@@ -107,6 +107,10 @@ Ext.define('PBS.config.GCJobView', {
 	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
 	reload: function() { this.getView().getStore().rstore.load(); },
 
+
+	filterState: function(view, state) {
+	    delete state.height;
+	},
     },
 
     listeners: {
@@ -114,6 +118,7 @@ Ext.define('PBS.config.GCJobView', {
 	beforedestroy: 'stopStore',
 	deactivate: 'stopStore',
 	itemdblclick: 'editGCJob',
+	beforestatesave: 'filterState',
     },
 
     store: {

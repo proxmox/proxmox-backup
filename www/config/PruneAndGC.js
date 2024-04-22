@@ -14,6 +14,7 @@ Ext.define('PBS.config.PruneAndGC', {
 	collapsible: false,
 	margin: '7 10 3 10',
     },
+    scrollable: true,
     items: [
 	{
 	    xtype: 'pbsGCJobView',
@@ -22,6 +23,11 @@ Ext.define('PBS.config.PruneAndGC', {
 	    cbind: {
 		datastore: '{datastore}',
 	    },
+	    minHeight: 125, // shows at least one line of content
+	},
+	{
+	    xtype: 'splitter',
+	    performCollapse: false,
 	},
 	{
 	    xtype: 'pbsPruneJobView',
@@ -30,12 +36,14 @@ Ext.define('PBS.config.PruneAndGC', {
 	    cbind: {
 		datastore: '{datastore}',
 	    },
+	    flex: 1,
+	    minHeight: 160, // shows at least one line of content
 	},
     ],
     initComponent: function() {
 	let me = this;
 
-	let subPanelIds = me.items.map(el => el.itemId);
+	let subPanelIds = me.items.map(el => el.itemId).filter(id => !!id);
 
 	me.callParent();
 
