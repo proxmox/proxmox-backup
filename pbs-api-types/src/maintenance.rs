@@ -33,7 +33,7 @@ pub enum Operation {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Copy, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 /// Maintenance type.
 pub enum MaintenanceType {
@@ -69,11 +69,11 @@ serde_plain::derive_fromstr_from_deserialize!(MaintenanceType);
 pub struct MaintenanceMode {
     /// Type of maintenance ("read-only" or "offline").
     #[serde(rename = "type")]
-    ty: MaintenanceType,
+    pub ty: MaintenanceType,
 
     /// Reason for maintenance.
     #[serde(skip_serializing_if = "Option::is_none")]
-    message: Option<String>,
+    pub message: Option<String>,
 }
 
 impl MaintenanceMode {
