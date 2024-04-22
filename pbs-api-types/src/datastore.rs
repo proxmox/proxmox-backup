@@ -11,8 +11,8 @@ use proxmox_schema::{
 };
 
 use crate::{
-    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid, BACKUP_ID_RE,
-    BACKUP_NS_RE, BACKUP_TIME_RE, BACKUP_TYPE_RE, DATASTORE_NOTIFY_STRING_SCHEMA,
+    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid,
+    BACKUP_ID_RE, BACKUP_NS_RE, BACKUP_TIME_RE, BACKUP_TYPE_RE, DATASTORE_NOTIFY_STRING_SCHEMA,
     GC_SCHEDULE_SCHEMA, GROUP_OR_SNAPSHOT_PATH_REGEX_STR, PROXMOX_SAFE_ID_FORMAT,
     PROXMOX_SAFE_ID_REGEX_STR, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA,
     SNAPSHOT_PATH_REGEX_STR, UPID,
@@ -336,10 +336,13 @@ impl DataStoreConfig {
     }
 
     pub fn get_maintenance_mode(&self) -> Option<MaintenanceMode> {
-        self.maintenance_mode
-            .as_ref()
-            .and_then(|str| MaintenanceMode::API_SCHEMA.parse_property_string(str).ok())
-            .and_then(|value| MaintenanceMode::deserialize(value).ok())
+        self.maintenance_mode.as_ref().and_then(|str| {
+            MaintenanceMode::deserialize(proxmox_schema::de::SchemaDeserializer::new(
+                str,
+                &MaintenanceMode::API_SCHEMA,
+            ))
+            .ok()
+        })
     }
 }
 
