@@ -111,7 +111,7 @@ Ext.define('PBS.config.GCJobView', {
 
     listeners: {
 	activate: 'startStore',
-	destroy: 'stopStore',
+	beforedestroy: 'stopStore',
 	deactivate: 'stopStore',
 	itemdblclick: 'editGCJob',
     },
