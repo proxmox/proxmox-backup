@@ -20,7 +20,7 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreFSyncLevel,
-    DatastoreTuning, GarbageCollectionStatus, Operation, UPID,
+    DatastoreTuning, GarbageCollectionStatus, MaintenanceMode, MaintenanceType, Operation, UPID,
 };
 
 use crate::backup_info::{BackupDir, BackupGroup, BackupGroupDeleteStats};
@@ -1390,7 +1390,11 @@ impl DataStore {
         let (mut config, _digest) = pbs_config::datastore::config()?;
         let mut datastore_config: DataStoreConfig = config.lookup("datastore", name)?;
 
-        datastore_config.maintenance_mode = Some("type=delete".to_string());
+        datastore_config.set_maintenance_mode(Some(MaintenanceMode {
+            ty: MaintenanceType::Delete,
+            message: None,
+        }))?;
+
         config.set_data(name, "datastore", &datastore_config)?;
         pbs_config::datastore::save_config(&config)?;
         drop(config_lock);

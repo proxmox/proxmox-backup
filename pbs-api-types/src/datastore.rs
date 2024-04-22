@@ -11,7 +11,7 @@ use proxmox_schema::{
 };
 
 use crate::{
-    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid,
+    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, MaintenanceType, Userid,
     BACKUP_ID_RE, BACKUP_NS_RE, BACKUP_TIME_RE, BACKUP_TYPE_RE, DATASTORE_NOTIFY_STRING_SCHEMA,
     GC_SCHEDULE_SCHEMA, GROUP_OR_SNAPSHOT_PATH_REGEX_STR, PROXMOX_SAFE_ID_FORMAT,
     PROXMOX_SAFE_ID_REGEX_STR, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA,
@@ -343,6 +343,37 @@ impl DataStoreConfig {
             ))
             .ok()
         })
+    }
+
+    pub fn set_maintenance_mode(&mut self, new_mode: Option<MaintenanceMode>) -> Result<(), Error> {
+        let current_type = self.get_maintenance_mode().map(|mode| mode.ty);
+        let new_type = new_mode.as_ref().map(|mode| mode.ty);
+
+        match current_type {
+            Some(MaintenanceType::ReadOnly) => { /* always OK  */ }
+            Some(MaintenanceType::Offline) => { /* always OK  */ }
+            Some(MaintenanceType::Delete) => {
+                match new_type {
+                    Some(MaintenanceType::Delete) => { /* allow to delete a deleted storage */ }
+                    _ => {
+                        bail!("datastore is being deleted")
+                    }
+                }
+            }
+            None => { /* always OK  */ }
+        }
+
+        let new_mode = match new_mode {
+            Some(new_mode) => Some(
+                proxmox_schema::property_string::PropertyString::new(new_mode)
+                    .to_property_string()?,
+            ),
+            None => None,
+        };
+
+        self.maintenance_mode = new_mode;
+
+        Ok(())
     }
 }
 

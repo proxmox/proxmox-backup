@@ -13,7 +13,7 @@ use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DatastoreTuning, KeepOptions,
-    PruneJobConfig, PruneJobOptions, DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE,
+    MaintenanceMode, PruneJobConfig, PruneJobOptions, DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::BackupLockGuard;
@@ -319,7 +319,7 @@ pub fn update_datastore(
                     data.tuning = None;
                 }
                 DeletableProperty::MaintenanceMode => {
-                    data.maintenance_mode = None;
+                    data.set_maintenance_mode(None)?;
                 }
             }
         }
@@ -392,7 +392,14 @@ pub fn update_datastore(
     let mut maintenance_mode_changed = false;
     if update.maintenance_mode.is_some() {
         maintenance_mode_changed = data.maintenance_mode != update.maintenance_mode;
-        data.maintenance_mode = update.maintenance_mode;
+
+        let maintenance_mode = match update.maintenance_mode {
+            Some(mode_str) => Some(MaintenanceMode::deserialize(
+                proxmox_schema::de::SchemaDeserializer::new(mode_str, &MaintenanceMode::API_SCHEMA),
+            )?),
+            None => None,
+        };
+        data.set_maintenance_mode(maintenance_mode)?;
     }
 
     config.set_data(&name, "datastore", &data)?;
