@@ -200,7 +200,13 @@ Ext.define('PBS.Utils', {
     },
 
     render_task_status: function(value, metadata, record, rowIndex, colIndex, store) {
-	if (!record.data['last-run-upid'] && !store.getById('last-run-upid')?.data.value) {
+	// GC tasks use 'upid' for backwards-compat, rest use 'last-run-upid'
+	if (
+	    !record.data['last-run-upid'] &&
+	    !store.getById('last-run-upid')?.data.value &&
+	    !record.data.upid &&
+	    !store.getById('upid')?.data.value
+	) {
 	    return '-';
 	}
 

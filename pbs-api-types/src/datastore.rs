@@ -1280,7 +1280,7 @@ pub struct TypeCounts {
         },
     },
 )]
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Garbage collection status.
 pub struct GarbageCollectionStatus {
@@ -1309,11 +1309,10 @@ pub struct GarbageCollectionStatus {
 
 #[api(
     properties: {
-        "last-run-upid": {
-            optional: true,
-            type: UPID,
+        "status": {
+            type: GarbageCollectionStatus,
         },
-    },
+    }
 )]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -1321,21 +1320,8 @@ pub struct GarbageCollectionStatus {
 pub struct GarbageCollectionJobStatus {
     /// Datastore
     pub store: String,
-    /// upid of the last run gc job
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_run_upid: Option<String>,
-    /// Sum of removed bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub removed_bytes: Option<u64>,
-    /// Number of removed chunks
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub removed_chunks: Option<usize>,
-    /// Sum of pending bytes
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pending_bytes: Option<u64>,
-    /// Number of pending chunks
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pending_chunks: Option<usize>,
+    #[serde(flatten)]
+    pub status: GarbageCollectionStatus,
     /// Schedule of the gc job
     #[serde(skip_serializing_if = "Option::is_none")]
     pub schedule: Option<String>,

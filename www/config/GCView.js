@@ -1,14 +1,14 @@
 Ext.define('pbs-gc-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'store', 'last-run-upid', 'removed-bytes', 'pending-bytes', 'schedule',
+	'store', 'upid', 'removed-bytes', 'pending-bytes', 'schedule',
 	'next-run', 'last-run-endtime', 'last-run-state',
 	{
 	    name: 'duration',
 	    calculate: function(data) {
 		let endtime = data['last-run-endtime'];
 		if (!endtime) return undefined;
-		let task = Proxmox.Utils.parse_task_upid(data['last-run-upid']);
+		let task = Proxmox.Utils.parse_task_upid(data['upid']);
 		return endtime - task.starttime;
 	    },
 	},
@@ -97,7 +97,7 @@ Ext.define('PBS.config.GCJobView', {
 	showTaskLog: function() {
 	    let me = this;
 
-	    let upid = this.getData()['last-run-upid'];
+	    let upid = this.getData().upid;
 	    if (!upid) return;
 
 	    Ext.create('Proxmox.window.TaskViewer', { upid }).show();
@@ -147,7 +147,7 @@ Ext.define('PBS.config.GCJobView', {
 	    xtype: 'proxmoxButton',
 	    text: gettext('Show Log'),
 	    handler: 'showTaskLog',
-	    enableFn: (rec) => !!rec.data["last-run-upid"],
+	    enableFn: (rec) => !!rec.data.upid,
 	    disabled: true,
 	},
 	{
@@ -214,7 +214,7 @@ Ext.define('PBS.config.GCJobView', {
 	{
 	    header: gettext('Removed Data'),
 	    dataIndex: 'removed-bytes',
-	    renderer: (value) => value !== undefined
+	    renderer: (value, meta, record) => record.data.upid !== null
 		? Proxmox.Utils.format_size(value, true) : "-",
 	    sortable: false,
 	    minWidth: 85,
@@ -223,7 +223,7 @@ Ext.define('PBS.config.GCJobView', {
 	{
 	    header: gettext('Pending Data'),
 	    dataIndex: 'pending-bytes',
-	    renderer: (value) => value !== undefined
+	    renderer: (value, meta, record) => record.data.upid !== null
 		? Proxmox.Utils.format_size(value, true) : "-",
 	    sortable: false,
 	    minWidth: 80,
