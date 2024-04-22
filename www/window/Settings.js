@@ -96,7 +96,7 @@ Ext.define('PBS.window.Settings', {
 		click: function() {
 		    let blacklist = ['login-username'];
 		    let sp = Ext.state.Manager.getProvider();
-		    for (const state of Object.values(sp.state)) {
+		    for (const state of Object.keys(sp.state)) {
 			if (blacklist.indexOf(state) !== -1) {
 			    continue;
 			}
