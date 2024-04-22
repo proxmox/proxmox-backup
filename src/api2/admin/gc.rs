@@ -8,7 +8,7 @@ use pbs_api_types::DATASTORE_SCHEMA;
 
 use serde_json::Value;
 
-use crate::api2::admin::datastore::{garbage_collection_job_status, get_datastore_list};
+use crate::api2::admin::datastore::{garbage_collection_status, get_datastore_list};
 
 #[api(
     input: {
@@ -37,13 +37,11 @@ pub fn list_all_gc_jobs(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GarbageCollectionJobStatus>, Error> {
     let gc_info = match store {
-        Some(store) => {
-            garbage_collection_job_status(store, _info, rpcenv).map(|info| vec![info])?
-        }
+        Some(store) => garbage_collection_status(store, _info, rpcenv).map(|info| vec![info])?,
         None => get_datastore_list(Value::Null, _info, rpcenv)?
             .into_iter()
             .map(|store_list_item| store_list_item.store)
-            .filter_map(|store| garbage_collection_job_status(store, _info, rpcenv).ok())
+            .filter_map(|store| garbage_collection_status(store, _info, rpcenv).ok())
             .collect::<Vec<_>>(),
     };
 

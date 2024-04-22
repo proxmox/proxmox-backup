@@ -1221,34 +1221,6 @@ pub fn start_garbage_collection(
         },
     },
     returns: {
-        type: GarbageCollectionStatus,
-    },
-    access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
-    },
-)]
-/// Garbage collection status.
-pub fn garbage_collection_status(
-    store: String,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<GarbageCollectionStatus, Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    let status = datastore.last_gc_status();
-
-    Ok(status)
-}
-
-#[api(
-    input: {
-        properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-        },
-    },
-    returns: {
         type: GarbageCollectionJobStatus,
     },
     access: {
@@ -1256,7 +1228,7 @@ pub fn garbage_collection_status(
     },
 )]
 /// Garbage collection status.
-pub fn garbage_collection_job_status(
+pub fn garbage_collection_status(
     store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -2405,10 +2377,6 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_GARBAGE_COLLECTION_STATUS)
             .post(&API_METHOD_START_GARBAGE_COLLECTION),
-    ),
-    (
-        "gc-job-status",
-        &Router::new().get(&API_METHOD_GARBAGE_COLLECTION_JOB_STATUS),
     ),
     (
         "group-notes",
