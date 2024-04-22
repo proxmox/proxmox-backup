@@ -1248,66 +1248,44 @@ pub fn garbage_collection_status(
         .map_err(|err| log::error!("could not open GC statefile for {store}: {err}"))
         .ok();
 
-    match status_in_memory.upid {
-        Some(ref upid) => {
-            let mut computed_schedule: JobScheduleStatus = JobScheduleStatus::default();
-            let mut duration = None;
-            if let Some(state) = state_file {
-                if let Ok(cs) = compute_schedule_status(&state, Some(&upid)) {
-                    computed_schedule = cs;
-                }
-            }
+    let mut last = proxmox_time::epoch_i64();
 
-            if let Some(endtime) = computed_schedule.last_run_endtime {
-                computed_schedule.next_run = info
-                    .schedule
-                    .as_ref()
-                    .and_then(|s| {
-                        s.parse::<CalendarEvent>()
-                            .map_err(|err| log::error!("{err}"))
-                            .ok()
-                    })
-                    .and_then(|e| {
-                        e.compute_next_event(endtime)
-                            .map_err(|err| log::error!("{err}"))
-                            .ok()
-                    })
-                    .and_then(|ne| ne);
-
-                if let Ok(parsed_upid) = upid.parse::<UPID>() {
-                    duration = Some(endtime - parsed_upid.starttime);
-                }
-            }
-
-            info.status = status_in_memory;
-            info.next_run = computed_schedule.next_run;
-            info.last_run_endtime = computed_schedule.last_run_endtime;
-            info.last_run_state = computed_schedule.last_run_state;
-            info.duration = duration;
-        }
-        None => {
-            if let Some(schedule) = &info.schedule {
-                info.next_run = schedule
-                    .parse::<CalendarEvent>()
-                    .map_err(|err| log::error!("{err}"))
-                    .ok()
-                    .and_then(|e| {
-                        e.compute_next_event(proxmox_time::epoch_i64())
-                            .map_err(|err| log::error!("{err}"))
-                            .ok()
-                    })
-                    .and_then(|ne| ne);
-
-                if let Ok(event) = schedule.parse::<CalendarEvent>() {
-                    if let Ok(next_event) = event.compute_next_event(proxmox_time::epoch_i64()) {
-                        info.next_run = next_event;
-                    }
-                }
-            } else {
-                return Ok(info);
+    if let Some(ref upid) = status_in_memory.upid {
+        let mut computed_schedule: JobScheduleStatus = JobScheduleStatus::default();
+        if let Some(state) = state_file {
+            if let Ok(cs) = compute_schedule_status(&state, Some(&upid)) {
+                computed_schedule = cs;
             }
         }
+
+        if let Some(endtime) = computed_schedule.last_run_endtime {
+            last = endtime;
+            if let Ok(parsed_upid) = upid.parse::<UPID>() {
+                info.duration = Some(endtime - parsed_upid.starttime);
+            }
+        }
+
+        info.next_run = computed_schedule.next_run;
+        info.last_run_endtime = computed_schedule.last_run_endtime;
+        info.last_run_state = computed_schedule.last_run_state;
     }
+
+    info.next_run = info
+        .schedule
+        .as_ref()
+        .and_then(|s| {
+            s.parse::<CalendarEvent>()
+                .map_err(|err| log::error!("{err}"))
+                .ok()
+        })
+        .and_then(|e| {
+            e.compute_next_event(last)
+                .map_err(|err| log::error!("{err}"))
+                .ok()
+        })
+        .and_then(|ne| ne);
+
+    info.status = status_in_memory;
 
     Ok(info)
 }
