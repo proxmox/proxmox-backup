@@ -2,16 +2,7 @@ Ext.define('pbs-gc-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
 	'store', 'upid', 'removed-bytes', 'pending-bytes', 'schedule',
-	'next-run', 'last-run-endtime', 'last-run-state',
-	{
-	    name: 'duration',
-	    calculate: function(data) {
-		let endtime = data['last-run-endtime'];
-		if (!endtime) return undefined;
-		let task = Proxmox.Utils.parse_task_upid(data['upid']);
-		return endtime - task.starttime;
-	    },
-	},
+	'next-run', 'last-run-endtime', 'last-run-state', 'duration',
     ],
     idProperty: 'store',
     proxy: {
