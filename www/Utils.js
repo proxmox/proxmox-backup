@@ -461,6 +461,28 @@ Ext.define('PBS.Utils', {
 		sync: false,
 	    },
 	});
+
+	// TODO: use `overrideEndpointTypes` later - not done right now to avoid
+	// breakage if widget-toolkit is not updated yet.
+	Proxmox.Schema.notificationEndpointTypes = {
+	    sendmail: {
+		name: 'Sendmail',
+		    ipanel: 'pmxSendmailEditPanel',
+		    iconCls: 'fa-envelope-o',
+		    defaultMailAuthor: 'Proxmox Backup Server ($hostname)',
+	    },
+	    smtp: {
+		name: 'SMTP',
+		    ipanel: 'pmxSmtpEditPanel',
+		    iconCls: 'fa-envelope-o',
+		    defaultMailAuthor: 'Proxmox Backup Server ($hostname)',
+	    },
+	    gotify: {
+		name: 'Gotify',
+		    ipanel: 'pmxGotifyEditPanel',
+		    iconCls: 'fa-bell-o',
+	    },
+	};
     },
 
     // Convert an ArrayBuffer to a base64url encoded string.
