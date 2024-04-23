@@ -41,3 +41,6 @@ usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_proxmox-backup-debug
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_proxmox-tape
+usr/share/proxmox-backup/templates/default/test-body.txt.hbs
+usr/share/proxmox-backup/templates/default/test-body.html.hbs
+usr/share/proxmox-backup/templates/default/test-subject.txt.hbs

@@ -4,7 +4,7 @@ include defines.mk
 PACKAGE := proxmox-backup
 ARCH := $(DEB_BUILD_ARCH)
 
-SUBDIRS := etc www docs
+SUBDIRS := etc www docs templates
 
 # Binaries usable by users
 USR_BIN := \
@@ -93,7 +93,7 @@ build:
 	cp -a debian \
 	  Cargo.toml src \
 	  $(SUBCRATES) \
-	  docs etc examples tests www zsh-completions \
+	  docs etc examples tests www zsh-completions templates \
 	  defines.mk Makefile \
 	  ./build/
 	rm -f build/Cargo.lock
@@ -211,6 +211,7 @@ install: $(COMPILED_BINS)
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install
 	$(MAKE) -C docs install
+	$(MAKE) -C templates install
 
 .PHONY: upload
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
