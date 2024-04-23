@@ -45,6 +45,8 @@ usr/share/proxmox-backup/templates/default/gc-err-body.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-ok-body.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-err-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-ok-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/package-updates-body.txt.hbs
+usr/share/proxmox-backup/templates/default/package-updates-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/prune-err-body.txt.hbs
 usr/share/proxmox-backup/templates/default/prune-ok-body.txt.hbs
 usr/share/proxmox-backup/templates/default/prune-err-subject.txt.hbs

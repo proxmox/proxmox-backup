@@ -23,18 +23,6 @@ use proxmox_notify::{Endpoint, Notification, Severity};
 
 const SPOOL_DIR: &str = concatcp!(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR, "/notifications");
 
-const PACKAGE_UPDATES_TEMPLATE: &str = r###"
-Proxmox Backup Server has the following updates available:
-{{#each updates }}
-  {{Package}}: {{OldVersion}} -> {{Version~}}
-{{/each }}
-
-To upgrade visit the web interface:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:updates>
-
-"###;
-
 const TAPE_BACKUP_OK_TEMPLATE: &str = r###"
 
 {{#if id ~}}
@@ -121,8 +109,6 @@ lazy_static::lazy_static! {
 
             hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
-
-            hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE)?;
 
             hb.register_template_string("certificate_renewal_err_template", ACME_CERTIFICATE_ERR_RENEWAL)?;
 
@@ -583,24 +569,25 @@ fn get_server_url() -> (String, usize) {
 }
 
 pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
-    // update mails always go to the root@pam configured email..
-    if let Some(email) = lookup_user_email(Userid::root_userid()) {
-        let nodename = proxmox_sys::nodename();
-        let subject = format!("New software packages available ({nodename})");
+    let (fqdn, port) = get_server_url();
+    let hostname = proxmox_sys::nodename().to_string();
 
-        let (fqdn, port) = get_server_url();
+    let data = json!({
+        "fqdn": fqdn,
+        "hostname": &hostname,
+        "port": port,
+        "updates": updates,
+    });
 
-        let text = HANDLEBARS.render(
-            "package_update_template",
-            &json!({
-                "fqdn": fqdn,
-                "port": port,
-                "updates": updates,
-            }),
-        )?;
+    let metadata = HashMap::from([
+        ("hostname".into(), hostname),
+        ("type".into(), "package-updates".into()),
+    ]);
 
-        send_job_status_mail(&email, &subject, &text)?;
-    }
+    let notification =
+        Notification::from_template(Severity::Info, "package-updates", data, metadata);
+
+    send_notification(notification)?;
     Ok(())
 }
 
@@ -686,8 +673,6 @@ pub fn lookup_datastore_notify_settings(
 fn test_template_register() {
     assert!(HANDLEBARS.has_template("tape_backup_ok_template"));
     assert!(HANDLEBARS.has_template("tape_backup_err_template"));
-
-    assert!(HANDLEBARS.has_template("package_update_template"));
 
     assert!(HANDLEBARS.has_template("certificate_renewal_err_template"));
 }

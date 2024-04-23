@@ -5,6 +5,8 @@ NOTIFICATION_TEMPLATES=					\
 	default/gc-ok-body.txt.hbs			\
 	default/gc-err-subject.txt.hbs		\
 	default/gc-ok-subject.txt.hbs		\
+	default/package-updates-body.txt.hbs			\
+	default/package-updates-subject.txt.hbs		\
 	default/prune-err-body.txt.hbs			\
 	default/prune-ok-body.txt.hbs			\
 	default/prune-err-subject.txt.hbs		\

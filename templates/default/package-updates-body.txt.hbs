@@ -1,0 +1,8 @@
+Proxmox Backup Server has the following updates available:
+{{#each updates }}
+    {{Package}}: {{OldVersion}} -> {{Version~}}
+{{/each }}
+
+To upgrade visit the web interface:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:updates>
