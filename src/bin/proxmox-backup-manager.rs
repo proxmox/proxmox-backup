@@ -492,6 +492,7 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
 
 async fn run() -> Result<(), Error> {
     init_cli_logger("PBS_LOG", "info");
+    proxmox_backup::server::notifications::init()?;
 
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
@@ -501,6 +502,7 @@ async fn run() -> Result<(), Error> {
         .insert("ldap", ldap_commands())
         .insert("network", network_commands())
         .insert("node", node_commands())
+        .insert("notification", notification_commands())
         .insert("user", user_commands())
         .insert("openid", openid_commands())
         .insert("remote", remote_commands())

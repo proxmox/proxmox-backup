@@ -28,6 +28,8 @@ mod disk;
 pub use disk::*;
 mod node;
 pub use node::*;
+mod notifications;
+pub use notifications::*;
 mod openid;
 pub use openid::*;
 mod traffic_control;

@@ -17,11 +17,11 @@ use crate::api2::config::datastore::list_datastores;
 use crate::api2::config::media_pool::list_pools;
 use crate::api2::tape::backup::list_tape_backup_jobs;
 
-mod gotify;
-mod matchers;
-mod sendmail;
-mod smtp;
-mod targets;
+pub mod gotify;
+pub mod matchers;
+pub mod sendmail;
+pub mod smtp;
+pub mod targets;
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
