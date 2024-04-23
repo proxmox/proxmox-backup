@@ -39,6 +39,9 @@ Ext.define('PBS.DataStoreEdit', {
 		title: gettext('General'),
 		xtype: 'inputpanel',
 		onlineHelp: 'datastore_intro',
+		cbind: {
+		    isCreate: '{isCreate}',
+		},
 		column1: [
 		    {
 			xtype: 'pmxDisplayEditField',
@@ -90,6 +93,16 @@ Ext.define('PBS.DataStoreEdit', {
 			fieldLabel: gettext('Comment'),
 		    },
 		],
+
+		onGetValues: function(values) {
+		    let me = this;
+
+		    if (me.isCreate) {
+			// New datastores default to using the notification system
+			values['notification-mode'] = 'notification-system';
+		    }
+		    return values;
+		},
 	    },
 	    {
 		title: gettext('Prune Options'),
