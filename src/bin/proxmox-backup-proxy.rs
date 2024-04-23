@@ -198,6 +198,7 @@ async fn run() -> Result<(), Error> {
     }
 
     proxmox_backup::auth_helpers::setup_auth_context(false);
+    proxmox_backup::server::notifications::init()?;
 
     let rrd_cache = initialize_rrd_cache()?;
     rrd_cache.apply_journal()?;

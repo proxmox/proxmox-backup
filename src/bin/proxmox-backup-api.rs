@@ -56,6 +56,7 @@ async fn run() -> Result<(), Error> {
     proxmox_backup::server::create_state_dir()?;
     proxmox_backup::server::create_active_operations_dir()?;
     proxmox_backup::server::jobstate::create_jobstate_dir()?;
+    proxmox_backup::server::notifications::create_spool_dir()?;
     proxmox_backup::tape::create_tape_status_dir()?;
     proxmox_backup::tape::create_drive_state_dir()?;
     proxmox_backup::tape::create_changer_state_dir()?;
@@ -72,6 +73,7 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     proxmox_backup::auth_helpers::setup_auth_context(true);
+    proxmox_backup::server::notifications::init()?;
 
     let backup_user = pbs_config::backup_user()?;
     let mut command_sock = proxmox_rest_server::CommandSocket::new(
@@ -153,6 +155,8 @@ async fn run() -> Result<(), Error> {
         std::thread::sleep(std::time::Duration::from_secs(3));
     });
 
+    start_notification_worker();
+
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
     proxmox_rest_server::last_worker_future().await?;
@@ -160,4 +164,11 @@ async fn run() -> Result<(), Error> {
     log::info!("done - exit server");
 
     Ok(())
+}
+
+fn start_notification_worker() {
+    let abort_future = proxmox_rest_server::shutdown_future();
+    let future = Box::pin(proxmox_backup::server::notifications::notification_worker());
+    let task = futures::future::select(future, abort_future);
+    tokio::spawn(task);
 }
