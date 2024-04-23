@@ -25,8 +25,8 @@ pub use gc_job::*;
 mod realm_sync_job;
 pub use realm_sync_job::*;
 
-mod email_notifications;
-pub use email_notifications::*;
+pub mod notifications;
+pub use notifications::*;
 
 mod report;
 pub use report::*;
