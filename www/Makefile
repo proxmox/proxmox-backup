@@ -68,6 +68,7 @@ JSSRC=							\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
 	config/MetricServerView.js			\
+	config/NotificationConfigView.js		\
 	config/PruneAndGC.js				\
 	window/ACLEdit.js				\
 	window/BackupGroupChangeOwner.js		\

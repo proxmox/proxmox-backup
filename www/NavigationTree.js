@@ -69,6 +69,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
+			text: gettext('Notifications'),
+			iconCls: 'fa fa-bell-o',
+			path: 'pbsNotificationConfigView',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
