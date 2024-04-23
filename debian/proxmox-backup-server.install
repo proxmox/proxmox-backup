@@ -30,6 +30,8 @@ usr/share/man/man5/acl.cfg.5
 usr/share/man/man5/datastore.cfg.5
 usr/share/man/man5/domains.cfg.5
 usr/share/man/man5/media-pool.cfg.5
+usr/share/man/man5/notifications.cfg.5
+usr/share/man/man5/notifications-priv.cfg.5
 usr/share/man/man5/remote.cfg.5
 usr/share/man/man5/sync.cfg.5
 usr/share/man/man5/tape-job.cfg.5

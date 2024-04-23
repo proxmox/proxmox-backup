@@ -35,6 +35,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/configuration-files.html#domains-cfg",
     "title": "``domains.cfg``"
   },
+  "notifications-cfg": {
+    "link": "/docs/configuration-files.html#notifications-cfg",
+    "title": "``notifications.cfg``"
+  },
   "faq-support-table": {
     "link": "/docs/faq.html#faq-support-table",
     "title": "How long will my Proxmox Backup Server version be supported?"
@@ -138,6 +142,26 @@ const proxmoxOnlineHelpInfo = {
   "sysadmin-traffic-control": {
     "link": "/docs/network-management.html#sysadmin-traffic-control",
     "title": "Traffic Control"
+  },
+  "notification-targets-sendmail": {
+    "link": "/docs/notifications.html#notification-targets-sendmail",
+    "title": "Sendmail"
+  },
+  "notification-targets-smtp": {
+    "link": "/docs/notifications.html#notification-targets-smtp",
+    "title": "SMTP"
+  },
+  "notification-targets-gotify": {
+    "link": "/docs/notifications.html#notification-targets-gotify",
+    "title": "Gotify"
+  },
+  "notification-matchers": {
+    "link": "/docs/notifications.html#notification-matchers",
+    "title": "Notification Matchers"
+  },
+  "notification-events": {
+    "link": "/docs/notifications.html#notification-events",
+    "title": "Notification Events"
   },
   "pve-integration": {
     "link": "/docs/pve-integration.html#pve-integration",

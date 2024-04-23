@@ -34,6 +34,7 @@ in the section entitled "GNU Free Documentation License".
    maintenance.rst
    sysadmin.rst
    network-management.rst
+   notifications.rst
    technical-overview.rst
    faq.rst
 

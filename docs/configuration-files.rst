@@ -67,6 +67,36 @@ Options
 
 .. include:: config/media-pool/config.rst
 
+.. _notifications.cfg:
+
+``notifications.cfg``
+~~~~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/notifications/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/notifications/config.rst
+
+``notifications-priv.cfg``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/notifications-priv/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/notifications-priv/config.rst
+
 
 ``tape.cfg``
 ~~~~~~~~~~~~
