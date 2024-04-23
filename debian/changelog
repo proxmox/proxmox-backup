@@ -1,3 +1,58 @@
+rust-proxmox-backup (3.2.0-1) bookworm; urgency=medium
+
+  * fix #5248: client: allow self-signed/untrusted certificate chains
+
+  * api: make prune-group a real worker task to avoid timeouts after 30s
+
+  * ui: sync view: rename column 'Max. Recursion' -> 'Max. Depth'
+
+  * api: assert that maintenance mode transitions are valid, e.g., do
+    not allow clearing the special "delete" maitenance mode
+
+  * fix #3217: ui: add global prune and GC job view for an overview over
+    all datastores
+
+  * fix #4723: manager: add new "garbage-collection list" CLI command to
+    list all GC jobs
+
+  * ui: garbage collection: show removed and pending data of last run in
+    bytes
+
+  * fix #5251: login: set autocomplete on password and user
+
+  * allow sending notifications via advanced proxmox-notify crate
+
+  * api: add endpoints for querying known notification values/fields
+
+  * api: add endpoints for gotify, smtp, and sendmail targets
+
+  * api: add endpoints for managing notification matchers
+
+  * api: add endpoints for querying/testing notification targets
+
+  * server: notifications:
+    - send tape notifications via notification system
+    - send ACME notifications via notification system
+    - send update notifications via notification system
+    - send sync notifications via notification system
+    - send verify notifications via notification system
+    - send prune notifications via notification system
+    - send GC notifications via notification system
+
+  * docs: add documentation for notification system
+
+  * ui: notifications: pull in UX improvements for match rules creation
+
+  * api: notification: also list datastores if user has only Backup
+    privs
+
+  * manager: add CLI commands for SMTP, sendmail, and gotify
+    endpoints
+
+  * manager: add CLI for administrating notification matchers and targets
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 23 Apr 2024 23:45:29 +0200
+
 rust-proxmox-backup (3.1.5-1) bookworm; urgency=medium
 
   * fix #5190: api: OIDC: accept generic URIs for the ACR value
