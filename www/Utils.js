@@ -435,6 +435,23 @@ Ext.define('PBS.Utils', {
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
 
+	Proxmox.Utils.overrideNotificationFieldName({
+	    'datastore': gettext('Datastore'),
+	    'job-id': gettext('Job ID'),
+	    'media-pool': gettext('Media Pool'),
+	});
+
+	Proxmox.Utils.overrideNotificationFieldValue({
+	    'acme': gettext('ACME certificate renewal'),
+	    'gc': gettext('Garbage collection'),
+	    'package-updates': gettext('Package updates are available'),
+	    'prune': gettext('Prune job'),
+	    'sync': gettext('Sync job'),
+	    'tape-backup': gettext('Tape backup notifications'),
+	    'tape-load': gettext('Tape loading request'),
+	    'verify': gettext('Verification job'),
+	});
+
 	Proxmox.Schema.overrideAuthDomains({
 	    pbs: {
 		name: 'Proxmox Backup authentication server',
