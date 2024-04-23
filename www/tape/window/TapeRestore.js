@@ -33,6 +33,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	data: {
 	    uuid: "",
 	    singleDatastore: true,
+	    notificationMode: 'notification-system',
 	},
 	formulas: {
 	    singleSelectorLabel: get =>
@@ -40,6 +41,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    singleSelectorEmptyText: get => get('singleDatastore') ? '' : Proxmox.Utils.NoneText,
 	    singleSelectorLabelNs: get =>
 		get('singleDatastore') ? gettext('Target Namespace') : gettext('Default Namespace'),
+	    notificationSystemSelected: (get) => get('notificationMode') === 'notification-system',
 	},
     },
 
@@ -429,6 +431,18 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    },
 		    column1: [
 			{
+			    xtype: 'proxmoxKVComboBox',
+			    comboItems: [
+				['legacy-sendmail', gettext('Email (legacy)')],
+				['notification-system', gettext('Notification system')],
+			    ],
+			    fieldLabel: gettext('Notification mode'),
+			    name: 'notification-mode',
+			    bind: {
+				value: '{notificationMode}',
+			    },
+			},
+			{
 			    xtype: 'pmxUserSelector',
 			    name: 'notify-user',
 			    fieldLabel: gettext('Notify User'),
@@ -437,6 +451,9 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    allowBlank: true,
 			    skipEmptyText: true,
 			    renderer: Ext.String.htmlEncode,
+			    bind: {
+				disabled: "{notificationSystemSelected}",
+			    },
 			},
 			{
 			    xtype: 'pbsAuthidSelector',
