@@ -7,6 +7,7 @@ pub mod drive;
 pub mod media_pool;
 pub mod metrics;
 pub mod network;
+pub mod notifications;
 pub mod prune;
 pub mod remote;
 pub mod sync;

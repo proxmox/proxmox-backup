@@ -17,6 +17,7 @@ regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+proxmox-notify.workspace = true
 proxmox-router = { workspace = true, default-features = false }
 proxmox-schema.workspace = true
 proxmox-section-config.workspace = true
