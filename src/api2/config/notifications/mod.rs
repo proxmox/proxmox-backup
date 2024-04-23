@@ -4,6 +4,7 @@ use proxmox_sortable_macro::sortable;
 
 mod matchers;
 mod sendmail;
+mod smtp;
 mod targets;
 
 #[sortable]
@@ -18,7 +19,8 @@ pub const ROUTER: Router = Router::new()
     .subdirs(SUBDIRS);
 
 #[sortable]
-const ENDPOINT_SUBDIRS: SubdirMap = &sorted!([("sendmail", &sendmail::ROUTER),]);
+const ENDPOINT_SUBDIRS: SubdirMap =
+    &sorted!([("sendmail", &sendmail::ROUTER), ("smtp", &smtp::ROUTER),]);
 
 const ENDPOINT_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(ENDPOINT_SUBDIRS))
