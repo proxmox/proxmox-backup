@@ -1,19 +1,17 @@
-use anyhow::Error;
-use const_format::concatcp;
-use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use handlebars::{Handlebars, TemplateError};
+use anyhow::Error;
+use const_format::concatcp;
 use nix::unistd::Uid;
+use serde_json::json;
 
-use proxmox_lang::try_block;
 use proxmox_notify::context::pbs::PBS_CONTEXT;
 use proxmox_schema::ApiType;
-use proxmox_sys::email::sendmail;
 use proxmox_sys::fs::{create_path, CreateOptions};
 
+use crate::tape::TapeNotificationMode;
 use pbs_api_types::{
     APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, NotificationMode,
     Notify, SyncJobConfig, TapeBackupJobSetup, User, Userid, VerificationJobConfig,
@@ -22,92 +20,6 @@ use proxmox_notify::endpoints::sendmail::{SendmailConfig, SendmailEndpoint};
 use proxmox_notify::{Endpoint, Notification, Severity};
 
 const SPOOL_DIR: &str = concatcp!(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR, "/notifications");
-
-const TAPE_BACKUP_OK_TEMPLATE: &str = r###"
-
-{{#if id ~}}
-Job ID:     {{id}}
-{{/if~}}
-Datastore:  {{job.store}}
-Tape Pool:  {{job.pool}}
-Tape Drive: {{job.drive}}
-
-{{#if snapshot-list ~}}
-Snapshots included:
-
-{{#each snapshot-list~}}
-{{this}}
-{{/each~}}
-{{/if}}
-Duration: {{duration}}
-{{#if used-tapes }}
-Used Tapes:
-{{#each used-tapes~}}
-{{this}}
-{{/each~}}
-{{/if}}
-Tape Backup successful.
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
-
-"###;
-
-const TAPE_BACKUP_ERR_TEMPLATE: &str = r###"
-
-{{#if id ~}}
-Job ID:     {{id}}
-{{/if~}}
-Datastore:  {{job.store}}
-Tape Pool:  {{job.pool}}
-Tape Drive: {{job.drive}}
-
-{{#if snapshot-list ~}}
-Snapshots included:
-
-{{#each snapshot-list~}}
-{{this}}
-{{/each~}}
-{{/if}}
-{{#if used-tapes }}
-Used Tapes:
-{{#each used-tapes~}}
-{{this}}
-{{/each~}}
-{{/if}}
-Tape Backup failed: {{error}}
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
-
-"###;
-
-lazy_static::lazy_static! {
-
-    static ref HANDLEBARS: Handlebars<'static> = {
-        let mut hb = Handlebars::new();
-        let result: Result<(), TemplateError> = try_block!({
-
-            hb.set_strict_mode(true);
-            hb.register_escape_fn(handlebars::no_escape);
-
-            hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
-            hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
-
-            Ok(())
-        });
-
-        if let Err(err) = result {
-            eprintln!("error during template registration: {err}");
-        }
-
-        hb
-    };
-}
 
 /// Initialize the notification system by setting context in proxmox_notify
 pub fn init() -> Result<(), Error> {
@@ -227,30 +139,6 @@ pub struct TapeBackupJobSummary {
     pub duration: std::time::Duration,
     /// The labels of the used tapes of the backup job
     pub used_tapes: Option<Vec<String>>,
-}
-
-fn send_job_status_mail(email: &str, subject: &str, text: &str) -> Result<(), Error> {
-    let (config, _) = crate::config::node::config()?;
-    let from = config.email_from;
-
-    // NOTE: some (web)mailers have big problems displaying text mails, so include html as well
-    let escaped_text = handlebars::html_escape(text);
-    let html = format!("<html><body><pre>\n{escaped_text}\n<pre>");
-
-    let nodename = proxmox_sys::nodename();
-
-    let author = format!("Proxmox Backup Server - {nodename}");
-
-    sendmail(
-        &[email],
-        subject,
-        Some(text),
-        Some(&html),
-        from.as_deref(),
-        Some(&author),
-    )?;
-
-    Ok(())
 }
 
 pub fn send_gc_status(
@@ -463,7 +351,6 @@ pub fn send_sync_status(job: &SyncJobConfig, result: &Result<(), Error>) -> Resu
 }
 
 pub fn send_tape_backup_status(
-    email: &str,
     id: Option<&str>,
     job: &TapeBackupJobSetup,
     result: &Result<(), Error>,
@@ -478,62 +365,86 @@ pub fn send_tape_backup_status(
         "id": id,
         "snapshot-list": summary.snapshot_list,
         "used-tapes": summary.used_tapes,
-        "duration": duration.to_string(),
+        "job-duration": duration.to_string(),
     });
 
-    let text = match result {
-        Ok(()) => HANDLEBARS.render("tape_backup_ok_template", &data)?,
+    let (template, severity) = match result {
+        Ok(()) => ("tape-backup-ok", Severity::Info),
         Err(err) => {
             data["error"] = err.to_string().into();
-            HANDLEBARS.render("tape_backup_err_template", &data)?
+            ("tape-backup-err", Severity::Error)
         }
     };
 
-    let subject = match (result, id) {
-        (Ok(()), Some(id)) => format!("Tape Backup '{id}' datastore '{}' successful", job.store,),
-        (Ok(()), None) => format!("Tape Backup datastore '{}' successful", job.store,),
-        (Err(_), Some(id)) => format!("Tape Backup '{id}' datastore '{}' failed", job.store,),
-        (Err(_), None) => format!("Tape Backup datastore '{}' failed", job.store,),
-    };
+    let mut metadata = HashMap::from([
+        ("datastore".into(), job.store.clone()),
+        ("media-pool".into(), job.pool.clone()),
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "tape-backup".into()),
+    ]);
 
-    send_job_status_mail(email, &subject, &text)?;
+    if let Some(id) = id {
+        metadata.insert("job-id".into(), id.into());
+    }
+
+    let notification = Notification::from_template(severity, template, data, metadata);
+
+    let mode = TapeNotificationMode::from(job);
+
+    match &mode {
+        TapeNotificationMode::LegacySendmail { notify_user } => {
+            let email = lookup_user_email(notify_user);
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        TapeNotificationMode::NotificationSystem => {
+            send_notification(notification)?;
+        }
+    }
 
     Ok(())
 }
 
 /// Send email to a person to request a manual media change
-pub fn send_load_media_email(
+pub fn send_load_media_notification(
+    mode: &TapeNotificationMode,
     changer: bool,
     device: &str,
     label_text: &str,
-    to: &str,
     reason: Option<String>,
 ) -> Result<(), Error> {
-    use std::fmt::Write as _;
-
     let device_type = if changer { "changer" } else { "drive" };
 
-    let subject = format!("Load Media '{label_text}' request for {device_type} '{device}'");
+    let data = json!({
+        "device-type": device_type,
+        "device": device,
+        "label-text": label_text,
+        "reason": reason,
+        "is-changer": changer,
+    });
 
-    let mut text = String::new();
+    let metadata = HashMap::from([
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "tape-load".into()),
+    ]);
+    let notification = Notification::from_template(Severity::Notice, "tape-load", data, metadata);
 
-    if let Some(reason) = reason {
-        let _ = write!(
-            text,
-            "The {device_type} has the wrong or no tape(s) inserted. Error:\n{reason}\n\n"
-        );
+    match mode {
+        TapeNotificationMode::LegacySendmail { notify_user } => {
+            let email = lookup_user_email(notify_user);
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        TapeNotificationMode::NotificationSystem => {
+            send_notification(notification)?;
+        }
     }
 
-    if changer {
-        text.push_str("Please insert the requested media into the changer.\n\n");
-        let _ = writeln!(text, "Changer: {device}");
-    } else {
-        text.push_str("Please insert the requested media into the backup drive.\n\n");
-        let _ = writeln!(text, "Drive: {device}");
-    }
-    let _ = writeln!(text, "Media: {label_text}");
-
-    send_job_status_mail(to, &subject, &text)
+    Ok(())
 }
 
 fn get_server_url() -> (String, usize) {
@@ -652,10 +563,4 @@ pub fn lookup_datastore_notify_settings(
     }
 
     (email, notify, notification_mode)
-}
-
-#[test]
-fn test_template_register() {
-    assert!(HANDLEBARS.has_template("tape_backup_ok_template"));
-    assert!(HANDLEBARS.has_template("tape_backup_err_template"));
 }

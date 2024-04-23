@@ -27,8 +27,9 @@ use pbs_key_config::KeyConfig;
 
 use pbs_tape::{sg_tape::TapeAlertFlags, BlockReadError, MediaContentHeader, TapeRead, TapeWrite};
 
+use crate::tape::TapeNotificationMode;
 use crate::{
-    server::send_load_media_email,
+    server::send_load_media_notification,
     tape::{
         changer::{MediaChange, MtxMediaChanger},
         drive::virtual_tape::open_virtual_tape_drive,
@@ -368,7 +369,7 @@ pub fn request_and_load_media(
     config: &SectionConfigData,
     drive: &str,
     label: &MediaLabel,
-    notify_email: &Option<String>,
+    notification_mode: &TapeNotificationMode,
 ) -> Result<(Box<dyn TapeDriver>, MediaId), Error> {
     let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox_uuid::Uuid| {
         if let Ok((Some(media_id), _)) = handle.read_label() {
@@ -428,15 +429,14 @@ pub fn request_and_load_media(
                                     device_type,
                                     device
                                 );
-                                if let Some(to) = notify_email {
-                                    send_load_media_email(
-                                        changer.is_some(),
-                                        device,
-                                        &label_text,
-                                        to,
-                                        Some(new.to_string()),
-                                    )?;
-                                }
+                                send_load_media_notification(
+                                    notification_mode,
+                                    changer.is_some(),
+                                    device,
+                                    &label_text,
+                                    Some(new.to_string()),
+                                )?;
+
                                 *old = new;
                             }
                             Ok(())

@@ -57,6 +57,12 @@ usr/share/proxmox-backup/templates/default/sync-err-body.txt.hbs
 usr/share/proxmox-backup/templates/default/sync-ok-body.txt.hbs
 usr/share/proxmox-backup/templates/default/sync-err-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/sync-ok-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-backup-err-body.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-backup-err-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-backup-ok-body.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-backup-ok-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-load-body.txt.hbs
+usr/share/proxmox-backup/templates/default/tape-load-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/test-body.txt.hbs
 usr/share/proxmox-backup/templates/default/test-body.html.hbs
 usr/share/proxmox-backup/templates/default/test-subject.txt.hbs

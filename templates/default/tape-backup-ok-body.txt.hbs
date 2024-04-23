@@ -1,0 +1,27 @@
+{{#if id ~}}
+Job ID:     {{id}}
+{{/if~}}
+Datastore:  {{job.store}}
+Tape Pool:  {{job.pool}}
+Tape Drive: {{job.drive}}
+
+{{#if snapshot-list ~}}
+Snapshots included:
+
+{{#each snapshot-list~}}
+{{this}}
+{{/each~}}
+{{/if}}
+Duration: {{job-duration}}
+{{#if used-tapes }}
+Used Tapes:
+{{#each used-tapes~}}
+{{this}}
+{{/each~}}
+{{/if}}
+Tape Backup successful.
+
+
+Please visit the web interface for further details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>

@@ -25,7 +25,8 @@ use crate::tape::{
     file_formats::{
         tape_write_catalog, tape_write_snapshot_archive, ChunkArchiveWriter, MediaSetLabel,
     },
-    MediaCatalog, MediaId, MediaPool, COMMIT_BLOCK_SIZE, MAX_CHUNK_ARCHIVE_SIZE, TAPE_STATUS_DIR,
+    MediaCatalog, MediaId, MediaPool, TapeNotificationMode, COMMIT_BLOCK_SIZE,
+    MAX_CHUNK_ARCHIVE_SIZE, TAPE_STATUS_DIR,
 };
 
 use super::file_formats::{
@@ -52,7 +53,7 @@ pub struct PoolWriter {
     drive_name: String,
     status: Option<PoolWriterState>,
     catalog_set: Arc<Mutex<CatalogSet>>,
-    notify_email: Option<String>,
+    notification_mode: TapeNotificationMode,
     ns_magic: bool,
     used_tapes: HashSet<Uuid>,
 }
@@ -62,7 +63,7 @@ impl PoolWriter {
         mut pool: MediaPool,
         drive_name: &str,
         worker: &WorkerTask,
-        notify_email: Option<String>,
+        notification_mode: TapeNotificationMode,
         force_media_set: bool,
         ns_magic: bool,
     ) -> Result<Self, Error> {
@@ -90,7 +91,7 @@ impl PoolWriter {
             drive_name: drive_name.to_string(),
             status: None,
             catalog_set: Arc::new(Mutex::new(catalog_set)),
-            notify_email,
+            notification_mode,
             ns_magic,
             used_tapes: HashSet::new(),
         })
@@ -248,7 +249,7 @@ impl PoolWriter {
             &drive_config,
             &self.drive_name,
             media.label(),
-            &self.notify_email,
+            &self.notification_mode,
         )?;
 
         // test for critical tape alert flags

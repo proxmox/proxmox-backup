@@ -17,6 +17,12 @@ NOTIFICATION_TEMPLATES=						\
 	default/sync-ok-body.txt.hbs			\
 	default/sync-err-subject.txt.hbs		\
 	default/sync-ok-subject.txt.hbs			\
+	default/tape-backup-err-body.txt.hbs	\
+	default/tape-backup-err-subject.txt.hbs	\
+	default/tape-backup-ok-body.txt.hbs		\
+	default/tape-backup-ok-subject.txt.hbs	\
+	default/tape-load-body.txt.hbs			\
+	default/tape-load-subject.txt.hbs		\
 	default/test-body.txt.hbs				\
 	default/test-body.html.hbs				\
 	default/test-subject.txt.hbs			\

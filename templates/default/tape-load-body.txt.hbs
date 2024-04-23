@@ -1,0 +1,15 @@
+{{#if reason~}}
+The {{ device-type }} has the wrong or no tape(s) inserted. Error:
+{{ reason }}
+
+{{/if~}}
+{{#if is-changer~}}
+Please insert the requested media into the changer.
+
+Changer: {{ device }}
+{{else}}
+Please insert the requested media into the backup drive.
+
+Drive: {{ device }}
+{{/if}}
+Media: {{ label-text }}

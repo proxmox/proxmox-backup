@@ -1,6 +1,7 @@
 //! Magnetic tape backup
 
 use anyhow::{format_err, Error};
+use proxmox_auth_api::types::Userid;
 
 use proxmox_sys::fs::{create_path, CreateOptions};
 
@@ -29,6 +30,7 @@ pub use media_catalog::*;
 
 mod media_catalog_cache;
 pub use media_catalog_cache::*;
+use pbs_api_types::{NotificationMode, TapeBackupJobSetup};
 
 mod pool_writer;
 pub use pool_writer::*;
@@ -127,4 +129,29 @@ pub fn create_changer_state_dir() -> Result<(), Error> {
         .map_err(|err: Error| format_err!("unable to create changer state dir - {}", err))?;
 
     Ok(())
+}
+
+#[derive(Clone)]
+pub enum TapeNotificationMode {
+    LegacySendmail { notify_user: Userid },
+    NotificationSystem,
+}
+
+impl From<&TapeBackupJobSetup> for TapeNotificationMode {
+    fn from(value: &TapeBackupJobSetup) -> Self {
+        Self::from((value.notify_user.clone(), value.notification_mode.clone()))
+    }
+}
+
+impl From<(Option<Userid>, Option<NotificationMode>)> for TapeNotificationMode {
+    fn from(value: (Option<Userid>, Option<NotificationMode>)) -> Self {
+        match value.1.as_ref().unwrap_or(&Default::default()) {
+            NotificationMode::LegacySendmail => {
+                let notify_user = value.0.as_ref().unwrap_or(Userid::root_userid()).clone();
+
+                Self::LegacySendmail { notify_user }
+            }
+            NotificationMode::NotificationSystem => Self::NotificationSystem,
+        }
+    }
 }
