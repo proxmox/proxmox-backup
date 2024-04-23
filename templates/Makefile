@@ -12,6 +12,10 @@ NOTIFICATION_TEMPLATES=					\
 	default/test-body.txt.hbs			\
 	default/test-body.html.hbs			\
 	default/test-subject.txt.hbs		\
+	default/verify-err-body.txt.hbs			\
+	default/verify-ok-body.txt.hbs			\
+	default/verify-err-subject.txt.hbs		\
+	default/verify-ok-subject.txt.hbs		\
 
 all:
 

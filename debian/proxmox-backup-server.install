@@ -52,3 +52,7 @@ usr/share/proxmox-backup/templates/default/prune-ok-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/test-body.txt.hbs
 usr/share/proxmox-backup/templates/default/test-body.html.hbs
 usr/share/proxmox-backup/templates/default/test-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/verify-err-body.txt.hbs
+usr/share/proxmox-backup/templates/default/verify-ok-body.txt.hbs
+usr/share/proxmox-backup/templates/default/verify-err-subject.txt.hbs
+usr/share/proxmox-backup/templates/default/verify-ok-subject.txt.hbs

@@ -23,9 +23,6 @@ pub fn do_verification_job(
     let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
-    let (email, notify, _) =
-        crate::server::lookup_datastore_notify_settings(&verification_job.store);
-
     // FIXME encode namespace here for filter/ACL check?
     let job_id = format!("{}:{}", &verification_job.store, job.jobname());
     let worker_type = job.jobtype().to_string();
@@ -79,12 +76,8 @@ pub fn do_verification_job(
                 eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
             }
 
-            if let Some(email) = email {
-                if let Err(err) =
-                    crate::server::send_verify_status(&email, notify, verification_job, &result)
-                {
-                    eprintln!("send verify notification failed: {}", err);
-                }
+            if let Err(err) = crate::server::send_verify_status(verification_job, &result) {
+                eprintln!("send verify notification failed: {err}");
             }
 
             job_result

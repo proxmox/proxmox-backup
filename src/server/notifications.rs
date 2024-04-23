@@ -23,38 +23,6 @@ use proxmox_notify::{Endpoint, Notification, Severity};
 
 const SPOOL_DIR: &str = concatcp!(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR, "/notifications");
 
-const VERIFY_OK_TEMPLATE: &str = r###"
-
-Job ID:    {{job.id}}
-Datastore: {{job.store}}
-
-Verification successful.
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
-
-"###;
-
-const VERIFY_ERR_TEMPLATE: &str = r###"
-
-Job ID:    {{job.id}}
-Datastore: {{job.store}}
-
-Verification failed on these snapshots/groups:
-
-{{#each errors}}
-  {{this~}}
-{{/each}}
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
-
-"###;
-
 const SYNC_OK_TEMPLATE: &str = r###"
 
 Job ID:             {{job.id}}
@@ -188,9 +156,6 @@ lazy_static::lazy_static! {
 
             hb.set_strict_mode(true);
             hb.register_escape_fn(handlebars::no_escape);
-
-            hb.register_template_string("verify_ok_template", VERIFY_OK_TEMPLATE)?;
-            hb.register_template_string("verify_err_template", VERIFY_ERR_TEMPLATE)?;
 
             hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE)?;
             hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE)?;
@@ -417,8 +382,6 @@ pub fn send_gc_status(
 }
 
 pub fn send_verify_status(
-    email: &str,
-    notify: DatastoreNotify,
     job: VerificationJobConfig,
     result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
@@ -429,38 +392,44 @@ pub fn send_verify_status(
         "port": port,
     });
 
-    let mut result_is_ok = false;
-
-    let text = match result {
-        Ok(errors) if errors.is_empty() => {
-            result_is_ok = true;
-            HANDLEBARS.render("verify_ok_template", &data)?
-        }
+    let (template, severity) = match result {
+        Ok(errors) if errors.is_empty() => ("verify-ok", Severity::Info),
         Ok(errors) => {
             data["errors"] = json!(errors);
-            HANDLEBARS.render("verify_err_template", &data)?
+            ("verify-err", Severity::Error)
         }
         Err(_) => {
-            // aborted job - do not send any email
+            // aborted job - do not send any notification
             return Ok(());
         }
     };
 
-    match notify.verify {
-        None => { /* send notifications by default */ }
-        Some(notify) => {
-            if notify == Notify::Never || (result_is_ok && notify == Notify::Error) {
+    let metadata = HashMap::from([
+        ("job-id".into(), job.id.clone()),
+        ("datastore".into(), job.store.clone()),
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "verify".into()),
+    ]);
+
+    let notification = Notification::from_template(severity, template, data, metadata);
+
+    let (email, notify, mode) = lookup_datastore_notify_settings(&job.store);
+    match mode {
+        NotificationMode::LegacySendmail => {
+            let notify = notify.verify.unwrap_or(Notify::Always);
+
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
                 return Ok(());
             }
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        NotificationMode::NotificationSystem => {
+            send_notification(notification)?;
         }
     }
-
-    let subject = match result {
-        Ok(errors) if errors.is_empty() => format!("Verify Datastore '{}' successful", job.store),
-        _ => format!("Verify Datastore '{}' failed", job.store),
-    };
-
-    send_job_status_mail(email, &subject, &text)?;
 
     Ok(())
 }
@@ -758,9 +727,6 @@ pub fn lookup_datastore_notify_settings(
 
 #[test]
 fn test_template_register() {
-    assert!(HANDLEBARS.has_template("verify_ok_template"));
-    assert!(HANDLEBARS.has_template("verify_err_template"));
-
     assert!(HANDLEBARS.has_template("sync_ok_template"));
     assert!(HANDLEBARS.has_template("sync_err_template"));
 
