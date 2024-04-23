@@ -93,34 +93,6 @@ Please visit the web interface for further details:
 
 "###;
 
-const PRUNE_OK_TEMPLATE: &str = r###"
-
-Job ID:       {{jobname}}
-Datastore:    {{store}}
-
-Pruning successful.
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#DataStore-{{store}}>
-
-"###;
-
-const PRUNE_ERR_TEMPLATE: &str = r###"
-
-Job ID:       {{jobname}}
-Datastore:    {{store}}
-
-Pruning failed: {{error}}
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
-
-"###;
-
 const PACKAGE_UPDATES_TEMPLATE: &str = r###"
 Proxmox Backup Server has the following updates available:
 {{#each updates }}
@@ -222,9 +194,6 @@ lazy_static::lazy_static! {
 
             hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE)?;
             hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE)?;
-
-            hb.register_template_string("prune_ok_template", PRUNE_OK_TEMPLATE)?;
-            hb.register_template_string("prune_err_template", PRUNE_ERR_TEMPLATE)?;
 
             hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
@@ -501,16 +470,6 @@ pub fn send_prune_status(
     jobname: &str,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
-    let (email, notify) = match lookup_datastore_notify_settings(store) {
-        (Some(email), notify, _) => (email, notify),
-        (None, _, _) => return Ok(()),
-    };
-
-    let notify_prune = notify.prune.unwrap_or(Notify::Error);
-    if notify_prune == Notify::Never || (result.is_ok() && notify_prune == Notify::Error) {
-        return Ok(());
-    }
-
     let (fqdn, port) = get_server_url();
     let mut data = json!({
         "jobname": jobname,
@@ -519,20 +478,40 @@ pub fn send_prune_status(
         "port": port,
     });
 
-    let text = match result {
-        Ok(()) => HANDLEBARS.render("prune_ok_template", &data)?,
+    let (template, severity) = match result {
+        Ok(()) => ("prune-ok", Severity::Info),
         Err(err) => {
             data["error"] = err.to_string().into();
-            HANDLEBARS.render("prune_err_template", &data)?
+            ("prune-err", Severity::Error)
         }
     };
 
-    let subject = match result {
-        Ok(()) => format!("Pruning datastore '{store}' successful"),
-        Err(_) => format!("Pruning datastore '{store}' failed"),
-    };
+    let metadata = HashMap::from([
+        ("job-id".into(), jobname.to_string()),
+        ("datastore".into(), store.into()),
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "prune".into()),
+    ]);
 
-    send_job_status_mail(&email, &subject, &text)?;
+    let notification = Notification::from_template(severity, template, data, metadata);
+
+    let (email, notify, mode) = lookup_datastore_notify_settings(store);
+    match mode {
+        NotificationMode::LegacySendmail => {
+            let notify = notify.prune.unwrap_or(Notify::Error);
+
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        NotificationMode::NotificationSystem => {
+            send_notification(notification)?;
+        }
+    }
 
     Ok(())
 }
