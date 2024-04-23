@@ -11,6 +11,7 @@ pub mod datastore;
 pub mod drive;
 pub mod media_pool;
 pub mod metrics;
+pub mod notifications;
 pub mod prune;
 pub mod remote;
 pub mod sync;
@@ -28,6 +29,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("drive", &drive::ROUTER),
     ("media-pool", &media_pool::ROUTER),
     ("metrics", &metrics::ROUTER),
+    ("notifications", &notifications::ROUTER),
     ("prune", &prune::ROUTER),
     ("remote", &remote::ROUTER),
     ("sync", &sync::ROUTER),
