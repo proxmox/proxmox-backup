@@ -1,16 +1,13 @@
 use anyhow::Error;
 use const_format::concatcp;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use handlebars::{
-    Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, TemplateError,
-};
+use handlebars::{Handlebars, TemplateError};
 use nix::unistd::Uid;
 
-use proxmox_human_byte::HumanByte;
 use proxmox_lang::try_block;
 use proxmox_notify::context::pbs::PBS_CONTEXT;
 use proxmox_schema::ApiType;
@@ -18,52 +15,13 @@ use proxmox_sys::email::sendmail;
 use proxmox_sys::fs::{create_path, CreateOptions};
 
 use pbs_api_types::{
-    APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, Notify,
-    SyncJobConfig, TapeBackupJobSetup, User, Userid, VerificationJobConfig,
+    APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, NotificationMode,
+    Notify, SyncJobConfig, TapeBackupJobSetup, User, Userid, VerificationJobConfig,
 };
-use proxmox_notify::{Notification, Severity};
+use proxmox_notify::endpoints::sendmail::{SendmailConfig, SendmailEndpoint};
+use proxmox_notify::{Endpoint, Notification, Severity};
 
 const SPOOL_DIR: &str = concatcp!(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR, "/notifications");
-const GC_OK_TEMPLATE: &str = r###"
-
-Datastore:            {{datastore}}
-Task ID:              {{status.upid}}
-Index file count:     {{status.index-file-count}}
-
-Removed garbage:      {{human-bytes status.removed-bytes}}
-Removed chunks:       {{status.removed-chunks}}
-Removed bad chunks:   {{status.removed-bad}}
-
-Leftover bad chunks:  {{status.still-bad}}
-Pending removals:     {{human-bytes status.pending-bytes}} (in {{status.pending-chunks}} chunks)
-
-Original Data usage:  {{human-bytes status.index-data-bytes}}
-On-Disk usage:        {{human-bytes status.disk-bytes}} ({{relative-percentage status.disk-bytes status.index-data-bytes}})
-On-Disk chunks:       {{status.disk-chunks}}
-
-Deduplication Factor: {{deduplication-factor}}
-
-Garbage collection successful.
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#DataStore-{{datastore}}>
-
-"###;
-
-const GC_ERR_TEMPLATE: &str = r###"
-
-Datastore: {{datastore}}
-
-Garbage collection failed: {{error}}
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
-
-"###;
 
 const VERIFY_OK_TEMPLATE: &str = r###"
 
@@ -259,12 +217,6 @@ lazy_static::lazy_static! {
             hb.set_strict_mode(true);
             hb.register_escape_fn(handlebars::no_escape);
 
-            hb.register_helper("human-bytes", Box::new(handlebars_humam_bytes_helper));
-            hb.register_helper("relative-percentage", Box::new(handlebars_relative_percentage_helper));
-
-            hb.register_template_string("gc_ok_template", GC_OK_TEMPLATE)?;
-            hb.register_template_string("gc_err_template", GC_ERR_TEMPLATE)?;
-
             hb.register_template_string("verify_ok_template", VERIFY_OK_TEMPLATE)?;
             hb.register_template_string("verify_err_template", VERIFY_ERR_TEMPLATE)?;
 
@@ -388,6 +340,19 @@ fn send_notification(notification: Notification) -> Result<(), Error> {
     Ok(())
 }
 
+fn send_sendmail_legacy_notification(notification: Notification, email: &str) -> Result<(), Error> {
+    let endpoint = SendmailEndpoint {
+        config: SendmailConfig {
+            mailto: vec![email.into()],
+            ..Default::default()
+        },
+    };
+
+    endpoint.send(&notification)?;
+
+    Ok(())
+}
+
 /// Summary of a successful Tape Job
 #[derive(Default)]
 pub struct TapeBackupJobSummary {
@@ -424,21 +389,10 @@ fn send_job_status_mail(email: &str, subject: &str, text: &str) -> Result<(), Er
 }
 
 pub fn send_gc_status(
-    email: &str,
-    notify: DatastoreNotify,
     datastore: &str,
     status: &GarbageCollectionStatus,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
-    match notify.gc {
-        None => { /* send notifications by default */ }
-        Some(notify) => {
-            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-                return Ok(());
-            }
-        }
-    }
-
     let (fqdn, port) = get_server_url();
     let mut data = json!({
         "datastore": datastore,
@@ -446,7 +400,7 @@ pub fn send_gc_status(
         "port": port,
     });
 
-    let text = match result {
+    let (severity, template) = match result {
         Ok(()) => {
             let deduplication_factor = if status.disk_bytes > 0 {
                 (status.index_data_bytes as f64) / (status.disk_bytes as f64)
@@ -457,20 +411,38 @@ pub fn send_gc_status(
             data["status"] = json!(status);
             data["deduplication-factor"] = format!("{:.2}", deduplication_factor).into();
 
-            HANDLEBARS.render("gc_ok_template", &data)?
+            (Severity::Info, "gc-ok")
         }
         Err(err) => {
             data["error"] = err.to_string().into();
-            HANDLEBARS.render("gc_err_template", &data)?
+            (Severity::Error, "gc-err")
         }
     };
+    let metadata = HashMap::from([
+        ("datastore".into(), datastore.into()),
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "gc".into()),
+    ]);
 
-    let subject = match result {
-        Ok(()) => format!("Garbage Collect Datastore '{datastore}' successful"),
-        Err(_) => format!("Garbage Collect Datastore '{datastore}' failed"),
-    };
+    let notification = Notification::from_template(severity, template, data, metadata);
 
-    send_job_status_mail(email, &subject, &text)?;
+    let (email, notify, mode) = lookup_datastore_notify_settings(datastore);
+    match mode {
+        NotificationMode::LegacySendmail => {
+            let notify = notify.gc.unwrap_or(Notify::Always);
+
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        NotificationMode::NotificationSystem => {
+            send_notification(notification)?;
+        }
+    }
 
     Ok(())
 }
@@ -530,8 +502,8 @@ pub fn send_prune_status(
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
     let (email, notify) = match lookup_datastore_notify_settings(store) {
-        (Some(email), notify) => (email, notify),
-        (None, _) => return Ok(()),
+        (Some(email), notify, _) => (email, notify),
+        (None, _, _) => return Ok(()),
     };
 
     let notify_prune = notify.prune.unwrap_or(Notify::Error);
@@ -766,7 +738,9 @@ pub fn lookup_user_email(userid: &Userid) -> Option<String> {
 }
 
 /// Lookup Datastore notify settings
-pub fn lookup_datastore_notify_settings(store: &str) -> (Option<String>, DatastoreNotify) {
+pub fn lookup_datastore_notify_settings(
+    store: &str,
+) -> (Option<String>, DatastoreNotify, NotificationMode) {
     let mut email = None;
 
     let notify = DatastoreNotify {
@@ -778,12 +752,12 @@ pub fn lookup_datastore_notify_settings(store: &str) -> (Option<String>, Datasto
 
     let (config, _digest) = match pbs_config::datastore::config() {
         Ok(result) => result,
-        Err(_) => return (email, notify),
+        Err(_) => return (email, notify, NotificationMode::default()),
     };
 
     let config: DataStoreConfig = match config.lookup("datastore", store) {
         Ok(result) => result,
-        Err(_) => return (email, notify),
+        Err(_) => return (email, notify, NotificationMode::default()),
     };
 
     email = match config.notify_user {
@@ -791,68 +765,20 @@ pub fn lookup_datastore_notify_settings(store: &str) -> (Option<String>, Datasto
         None => lookup_user_email(Userid::root_userid()),
     };
 
+    let notification_mode = config.notification_mode.unwrap_or_default();
     let notify_str = config.notify.unwrap_or_default();
 
     if let Ok(value) = DatastoreNotify::API_SCHEMA.parse_property_string(&notify_str) {
         if let Ok(notify) = serde_json::from_value(value) {
-            return (email, notify);
+            return (email, notify, notification_mode);
         }
     }
 
-    (email, notify)
-}
-
-// Handlerbar helper functions
-
-fn handlebars_humam_bytes_helper(
-    h: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _rc: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let param = h
-        .param(0)
-        .and_then(|v| v.value().as_u64())
-        .ok_or_else(|| RenderError::new("human-bytes: param not found"))?;
-
-    out.write(&HumanByte::from(param).to_string())?;
-
-    Ok(())
-}
-
-fn handlebars_relative_percentage_helper(
-    h: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _rc: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let param0 = h
-        .param(0)
-        .and_then(|v| v.value().as_f64())
-        .ok_or_else(|| RenderError::new("relative-percentage: param0 not found"))?;
-    let param1 = h
-        .param(1)
-        .and_then(|v| v.value().as_f64())
-        .ok_or_else(|| RenderError::new("relative-percentage: param1 not found"))?;
-
-    if param1 == 0.0 {
-        out.write("-")?;
-    } else {
-        out.write(&format!("{:.2}%", (param0 * 100.0) / param1))?;
-    }
-    Ok(())
+    (email, notify, notification_mode)
 }
 
 #[test]
 fn test_template_register() {
-    HANDLEBARS.get_helper("human-bytes").unwrap();
-    HANDLEBARS.get_helper("relative-percentage").unwrap();
-
-    assert!(HANDLEBARS.has_template("gc_ok_template"));
-    assert!(HANDLEBARS.has_template("gc_err_template"));
-
     assert!(HANDLEBARS.has_template("verify_ok_template"));
     assert!(HANDLEBARS.has_template("verify_err_template"));
 

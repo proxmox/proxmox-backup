@@ -1,6 +1,10 @@
 include ../defines.mk
 
 NOTIFICATION_TEMPLATES=					\
+	default/gc-err-body.txt.hbs			\
+	default/gc-ok-body.txt.hbs			\
+	default/gc-err-subject.txt.hbs		\
+	default/gc-ok-subject.txt.hbs		\
 	default/test-body.txt.hbs			\
 	default/test-body.html.hbs			\
 	default/test-subject.txt.hbs		\

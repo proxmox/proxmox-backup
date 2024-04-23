@@ -114,7 +114,7 @@ pub fn do_sync_job(
         bail!("can't sync to same datastore");
     }
 
-    let (email, notify) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
+    let (email, notify, _) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
 
     let upid_str = WorkerTask::spawn(
         &worker_type,

@@ -23,7 +23,8 @@ pub fn do_verification_job(
     let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
-    let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
+    let (email, notify, _) =
+        crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
     // FIXME encode namespace here for filter/ACL check?
     let job_id = format!("{}:{}", &verification_job.store, job.jobname());
