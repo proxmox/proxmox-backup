@@ -46,6 +46,15 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 	},
     },
 
+    viewModel: {
+	data: {
+	    notificationMode: 'notification-system',
+	},
+	formulas: {
+	    notificationSystemSelected: (get) => get('notificationMode') === 'notification-system',
+	},
+    },
+
     items: {
 	xtype: 'tabpanel',
 	bodyPadding: 10,
@@ -110,6 +119,18 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 			name: 'drive',
 		    },
 		    {
+			xtype: 'proxmoxKVComboBox',
+			comboItems: [
+			    ['legacy-sendmail', gettext('Email (legacy)')],
+			    ['notification-system', gettext('Notification system')],
+			],
+			fieldLabel: gettext('Notification mode'),
+			name: 'notification-mode',
+			bind: {
+			    value: '{notificationMode}',
+			},
+		    },
+		    {
 			xtype: 'pmxUserSelector',
 			name: 'notify-user',
 			fieldLabel: gettext('Notify User'),
@@ -117,6 +138,9 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 			allowBlank: true,
 			value: null,
 			renderer: Ext.String.htmlEncode,
+			bind: {
+			    disabled: "{notificationSystemSelected}",
+			},
 		    },
 		],
 
