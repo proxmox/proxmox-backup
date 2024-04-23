@@ -86,18 +86,6 @@ Please visit the web interface for further details:
 
 "###;
 
-const ACME_CERTIFICATE_ERR_RENEWAL: &str = r###"
-
-Proxmox Backup Server was not able to renew a TLS certificate.
-
-Error: {{error}}
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsCertificateConfiguration>
-
-"###;
-
 lazy_static::lazy_static! {
 
     static ref HANDLEBARS: Handlebars<'static> = {
@@ -109,8 +97,6 @@ lazy_static::lazy_static! {
 
             hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
-
-            hb.register_template_string("certificate_renewal_err_template", ACME_CERTIFICATE_ERR_RENEWAL)?;
 
             Ok(())
         });
@@ -598,23 +584,22 @@ pub fn send_certificate_renewal_mail(result: &Result<(), Error>) -> Result<(), E
         _ => return Ok(()),
     };
 
-    if let Some(email) = lookup_user_email(Userid::root_userid()) {
-        let (fqdn, port) = get_server_url();
+    let (fqdn, port) = get_server_url();
 
-        let text = HANDLEBARS.render(
-            "certificate_renewal_err_template",
-            &json!({
-                "fqdn": fqdn,
-                "port": port,
-                "error": error,
-            }),
-        )?;
+    let data = json!({
+        "fqdn": fqdn,
+        "port": port,
+        "error": error,
+    });
 
-        let subject = "Could not renew certificate";
+    let metadata = HashMap::from([
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "acme".into()),
+    ]);
 
-        send_job_status_mail(&email, subject, &text)?;
-    }
+    let notification = Notification::from_template(Severity::Info, "acme-err", data, metadata);
 
+    send_notification(notification)?;
     Ok(())
 }
 
@@ -673,6 +658,4 @@ pub fn lookup_datastore_notify_settings(
 fn test_template_register() {
     assert!(HANDLEBARS.has_template("tape_backup_ok_template"));
     assert!(HANDLEBARS.has_template("tape_backup_err_template"));
-
-    assert!(HANDLEBARS.has_template("certificate_renewal_err_template"));
 }

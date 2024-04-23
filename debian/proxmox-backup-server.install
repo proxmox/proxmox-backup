@@ -41,6 +41,8 @@ usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_proxmox-backup-debug
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_proxmox-tape
+usr/share/proxmox-backup/templates/default/acme-err-body.txt.hbs
+usr/share/proxmox-backup/templates/default/acme-err-subject.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-err-body.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-ok-body.txt.hbs
 usr/share/proxmox-backup/templates/default/gc-err-subject.txt.hbs
