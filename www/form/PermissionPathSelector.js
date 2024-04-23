@@ -19,6 +19,7 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	{ 'value': '/system/network' },
 	{ 'value': '/system/network/dns' },
 	{ 'value': '/system/network/interfaces' },
+	{ 'value': '/system/notifications' },
 	{ 'value': '/system/services' },
 	{ 'value': '/system/status' },
 	{ 'value': '/system/tasks' },
