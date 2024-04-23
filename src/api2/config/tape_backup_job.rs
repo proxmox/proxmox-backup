@@ -132,6 +132,8 @@ pub enum DeletableProperty {
     LatestOnly,
     /// Delete the 'notify-user' property
     NotifyUser,
+    /// Delete the 'notification-mode' property
+    NotificationMode,
     /// Delete the 'group_filter' property
     GroupFilter,
     /// Delete the 'max-depth' property
@@ -202,6 +204,9 @@ pub fn update_tape_backup_job(
                 DeletableProperty::NotifyUser => {
                     data.setup.notify_user = None;
                 }
+                DeletableProperty::NotificationMode => {
+                    data.setup.notification_mode = None;
+                }
                 DeletableProperty::Schedule => {
                     data.schedule = None;
                 }
@@ -242,6 +247,9 @@ pub fn update_tape_backup_job(
     }
     if update.setup.notify_user.is_some() {
         data.setup.notify_user = update.setup.notify_user;
+    }
+    if update.setup.notification_mode.is_some() {
+        data.setup.notification_mode = update.setup.notification_mode;
     }
     if update.setup.group_filter.is_some() {
         data.setup.group_filter = update.setup.group_filter;

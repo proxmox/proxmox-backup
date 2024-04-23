@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
-    BACKUP_NAMESPACE_SCHEMA, BACKUP_NS_RE, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA,
-    MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT,
+    Authid, BackupNamespace, BackupType, NotificationMode, RateLimitConfig, Userid,
+    BACKUP_GROUP_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_NS_RE, DATASTORE_SCHEMA,
+    DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT,
     PROXMOX_SAFE_ID_REGEX_STR, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
@@ -324,6 +324,8 @@ pub struct TapeBackupJobSetup {
     /// Send job email notification to this user
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notify_user: Option<Userid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_mode: Option<NotificationMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group_filter: Option<Vec<GroupFilter>>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
