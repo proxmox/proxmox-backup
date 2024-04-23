@@ -159,6 +159,21 @@ Ext.define('PBS.Datastore.Options', {
     },
 
     rows: {
+	"notification-mode": {
+	    required: true,
+	    defaultValue: 'legacy-sendmail',
+	    header: gettext('Notification mode'),
+	    renderer: function(value) {
+		if (value === 'notification-system') {
+		    return gettext('Notification system');
+		} else {
+		    return gettext('Email (legacy)');
+		}
+	    },
+	    editor: {
+		xtype: 'pbsNotifyOptionEdit',
+	    },
+	},
 	"notify": {
 	    required: true,
 	    header: gettext('Notify'),

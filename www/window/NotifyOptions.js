@@ -44,6 +44,15 @@ Ext.define('PBS.window.NotifyOptions', {
 	labelWidth: 120,
     },
 
+    viewModel: {
+	data: {
+	    notificationMode: '__default__',
+	},
+	formulas: {
+	    notificationSystemSelected: (get) => get('notificationMode') === 'notification-system',
+	},
+    },
+
     items: {
 	xtype: 'inputpanel',
 	onGetValues: function(values) {
@@ -54,12 +63,30 @@ Ext.define('PBS.window.NotifyOptions', {
 	    }
 	    values.notify = PBS.Utils.printPropertyString(notify);
 
+	    if (values.delete && !Ext.isArray(values.delete)) {
+		values.delete = values.delete.split(',');
+	    }
+
 	    PBS.Utils.delete_if_default(values, 'notify', '');
 	    PBS.Utils.delete_if_default(values, 'notify-user', '');
 
 	    return values;
 	},
 	items: [
+	    {
+		xtype: 'proxmoxKVComboBox',
+		comboItems: [
+		    ['__default__', `${Proxmox.Utils.defaultText}  (Email)`],
+		    ['legacy-sendmail', gettext('Email (legacy)')],
+		    ['notification-system', gettext('Notification system')],
+		],
+		deleteEmpty: true,
+		fieldLabel: gettext('Notification mode'),
+		name: 'notification-mode',
+		bind: {
+		    value: '{notificationMode}',
+		},
+	    },
 	    {
 		xtype: 'pmxUserSelector',
 		name: 'notify-user',
@@ -69,6 +96,9 @@ Ext.define('PBS.window.NotifyOptions', {
 		allowBlank: true,
 		renderer: Ext.String.htmlEncode,
 		deleteEmpty: true,
+		bind: {
+		    disabled: "{notificationSystemSelected}",
+		},
 	    },
 	    {
 		xtype: 'pbsNotifyType',
@@ -76,6 +106,9 @@ Ext.define('PBS.window.NotifyOptions', {
 		fieldLabel: gettext('Verification Jobs'),
 		value: '__default__',
 		deleteEmpty: false,
+		bind: {
+		    disabled: "{notificationSystemSelected}",
+		},
 	    },
 	    {
 		xtype: 'pbsNotifyType',
@@ -83,6 +116,9 @@ Ext.define('PBS.window.NotifyOptions', {
 		fieldLabel: gettext('Sync Jobs'),
 		value: '__default__',
 		deleteEmpty: false,
+		bind: {
+		    disabled: "{notificationSystemSelected}",
+		},
 	    },
 	    {
 		xtype: 'pbsNotifyErrorDefaultType',
@@ -90,6 +126,9 @@ Ext.define('PBS.window.NotifyOptions', {
 		fieldLabel: gettext('Prune Jobs'),
 		value: '__default__',
 		deleteEmpty: false,
+		bind: {
+		    disabled: "{notificationSystemSelected}",
+		},
 	    },
 	    {
 		xtype: 'pbsNotifyType',
@@ -97,6 +136,9 @@ Ext.define('PBS.window.NotifyOptions', {
 		fieldLabel: gettext('Garbage Collection'),
 		value: '__default__',
 		deleteEmpty: false,
+		bind: {
+		    disabled: "{notificationSystemSelected}",
+		},
 	    },
 	],
     },
@@ -107,6 +149,8 @@ Ext.define('PBS.window.NotifyOptions', {
 	let options = {
 	    'notify-user': values['notify-user'],
 	    'verify-new': values['verify-new'],
+	    'notification-mode': values['notification-mode']
+		? values['notification-mode'] : '__default__',
 	};
 
 	let notify = {};
