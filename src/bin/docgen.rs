@@ -31,6 +31,10 @@ fn main() -> Result<(), Error> {
             "apidata.js" => generate_api_tree(),
             "datastore.cfg" => dump_section_config(&pbs_config::datastore::CONFIG),
             "domains.cfg" => dump_section_config(&pbs_config::domains::CONFIG),
+            "notifications.cfg" => dump_section_config(proxmox_notify::config::config_parser()),
+            "notifications-priv.cfg" => {
+                dump_section_config(proxmox_notify::config::private_config_parser())
+            }
             "tape.cfg" => dump_section_config(&pbs_config::drive::CONFIG),
             "tape-job.cfg" => dump_section_config(&pbs_config::tape_job::CONFIG),
             "user.cfg" => dump_section_config(&pbs_config::user::CONFIG),
