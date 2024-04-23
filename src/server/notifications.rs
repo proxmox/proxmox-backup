@@ -23,44 +23,6 @@ use proxmox_notify::{Endpoint, Notification, Severity};
 
 const SPOOL_DIR: &str = concatcp!(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR, "/notifications");
 
-const SYNC_OK_TEMPLATE: &str = r###"
-
-Job ID:             {{job.id}}
-Datastore:          {{job.store}}
-{{#if job.remote~}}
-Remote:             {{job.remote}}
-Remote Store:       {{job.remote-store}}
-{{else~}}
-Local Source Store: {{job.remote-store}}
-{{/if}}
-Synchronization successful.
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
-
-"###;
-
-const SYNC_ERR_TEMPLATE: &str = r###"
-
-Job ID:             {{job.id}}
-Datastore:          {{job.store}}
-{{#if job.remote~}}
-Remote:             {{job.remote}}
-Remote Store:       {{job.remote-store}}
-{{else~}}
-Local Source Store: {{job.remote-store}}
-{{/if}}
-Synchronization failed: {{error}}
-
-
-Please visit the web interface for further details:
-
-<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
-
-"###;
-
 const PACKAGE_UPDATES_TEMPLATE: &str = r###"
 Proxmox Backup Server has the following updates available:
 {{#each updates }}
@@ -156,9 +118,6 @@ lazy_static::lazy_static! {
 
             hb.set_strict_mode(true);
             hb.register_escape_fn(handlebars::no_escape);
-
-            hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE)?;
-            hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE)?;
 
             hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
@@ -485,21 +444,7 @@ pub fn send_prune_status(
     Ok(())
 }
 
-pub fn send_sync_status(
-    email: &str,
-    notify: DatastoreNotify,
-    job: &SyncJobConfig,
-    result: &Result<(), Error>,
-) -> Result<(), Error> {
-    match notify.sync {
-        None => { /* send notifications by default */ }
-        Some(notify) => {
-            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-                return Ok(());
-            }
-        }
-    }
-
+pub fn send_sync_status(job: &SyncJobConfig, result: &Result<(), Error>) -> Result<(), Error> {
     let (fqdn, port) = get_server_url();
     let mut data = json!({
         "job": job,
@@ -507,28 +452,40 @@ pub fn send_sync_status(
         "port": port,
     });
 
-    let text = match result {
-        Ok(()) => HANDLEBARS.render("sync_ok_template", &data)?,
+    let (template, severity) = match result {
+        Ok(()) => ("sync-ok", Severity::Info),
         Err(err) => {
             data["error"] = err.to_string().into();
-            HANDLEBARS.render("sync_err_template", &data)?
+            ("sync-err", Severity::Error)
         }
     };
 
-    let tmp_src_string;
-    let source_str = if let Some(remote) = &job.remote {
-        tmp_src_string = format!("Sync remote '{}'", remote);
-        &tmp_src_string
-    } else {
-        "Sync local"
-    };
+    let metadata = HashMap::from([
+        ("job-id".into(), job.id.clone()),
+        ("datastore".into(), job.store.clone()),
+        ("hostname".into(), proxmox_sys::nodename().into()),
+        ("type".into(), "sync".into()),
+    ]);
 
-    let subject = match result {
-        Ok(()) => format!("{} datastore '{}' successful", source_str, job.remote_store,),
-        Err(_) => format!("{} datastore '{}' failed", source_str, job.remote_store,),
-    };
+    let notification = Notification::from_template(severity, template, data, metadata);
 
-    send_job_status_mail(email, &subject, &text)?;
+    let (email, notify, mode) = lookup_datastore_notify_settings(&job.store);
+    match mode {
+        NotificationMode::LegacySendmail => {
+            let notify = notify.prune.unwrap_or(Notify::Error);
+
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+
+            if let Some(email) = email {
+                send_sendmail_legacy_notification(notification, &email)?;
+            }
+        }
+        NotificationMode::NotificationSystem => {
+            send_notification(notification)?;
+        }
+    }
 
     Ok(())
 }
@@ -727,9 +684,6 @@ pub fn lookup_datastore_notify_settings(
 
 #[test]
 fn test_template_register() {
-    assert!(HANDLEBARS.has_template("sync_ok_template"));
-    assert!(HANDLEBARS.has_template("sync_err_template"));
-
     assert!(HANDLEBARS.has_template("tape_backup_ok_template"));
     assert!(HANDLEBARS.has_template("tape_backup_err_template"));
 

@@ -1,0 +1,14 @@
+Job ID:             {{job.id}}
+Datastore:          {{job.store}}
+{{#if job.remote~}}
+Remote:             {{job.remote}}
+Remote Store:       {{job.remote-store}}
+{{else~}}
+Local Source Store: {{job.remote-store}}
+{{/if}}
+Synchronization successful.
+
+
+Please visit the web interface for further details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>

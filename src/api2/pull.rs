@@ -114,8 +114,6 @@ pub fn do_sync_job(
         bail!("can't sync to same datastore");
     }
 
-    let (email, notify, _) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
-
     let upid_str = WorkerTask::spawn(
         &worker_type,
         Some(job_id.clone()),
@@ -194,12 +192,8 @@ pub fn do_sync_job(
                 }
             }
 
-            if let Some(email) = email {
-                if let Err(err) =
-                    crate::server::send_sync_status(&email, notify, &sync_job2, &result)
-                {
-                    eprintln!("send sync notification failed: {}", err);
-                }
+            if let Err(err) = crate::server::send_sync_status(&sync_job2, &result) {
+                eprintln!("send sync notification failed: {err}");
             }
 
             result

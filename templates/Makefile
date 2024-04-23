@@ -9,6 +9,10 @@ NOTIFICATION_TEMPLATES=					\
 	default/prune-ok-body.txt.hbs			\
 	default/prune-err-subject.txt.hbs		\
 	default/prune-ok-subject.txt.hbs		\
+	default/sync-err-body.txt.hbs			\
+	default/sync-ok-body.txt.hbs			\
+	default/sync-err-subject.txt.hbs		\
+	default/sync-ok-subject.txt.hbs		\
 	default/test-body.txt.hbs			\
 	default/test-body.html.hbs			\
 	default/test-subject.txt.hbs		\

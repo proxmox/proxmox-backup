@@ -1,0 +1,5 @@
+{{#if job.remote~}}
+Sync remote '{{ job.remote }}' datastore '{{ job.remote-store }}' successful
+{{else~}}
+Sync local datastore '{{ job.remote-store }}' successful
+{{/if}}
