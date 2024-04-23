@@ -2,10 +2,13 @@ use proxmox_router::cli::{CliCommandMap, CommandLineInterface};
 
 mod gotify;
 mod matchers;
+mod sendmail;
 mod targets;
 
 pub fn notification_commands() -> CommandLineInterface {
-    let endpoint_def = CliCommandMap::new().insert("gotify", gotify::commands());
+    let endpoint_def = CliCommandMap::new()
+        .insert("gotify", gotify::commands())
+        .insert("sendmail", sendmail::commands());
 
     let cmd_def = CliCommandMap::new()
         .insert("endpoint", endpoint_def)
