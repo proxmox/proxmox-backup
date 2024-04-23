@@ -48,11 +48,19 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
     viewModel: {
 	data: {
-	    notificationMode: 'notification-system',
+	    notificationMode: '__default__',
 	},
 	formulas: {
 	    notificationSystemSelected: (get) => get('notificationMode') === 'notification-system',
 	},
+    },
+
+    initComponent: function() {
+	let me = this;
+	// Automatically select the new system for new jobs
+	let mode = me.isCreate ? "notification-system" : "__default__";
+	me.getViewModel().set('notificationMode', mode);
+	me.callParent();
     },
 
     items: {
@@ -121,6 +129,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		    {
 			xtype: 'proxmoxKVComboBox',
 			comboItems: [
+			    ['__default__', `${Proxmox.Utils.defaultText}  (Email)`],
 			    ['legacy-sendmail', gettext('Email (legacy)')],
 			    ['notification-system', gettext('Notification system')],
 			],
