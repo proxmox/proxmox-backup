@@ -3,17 +3,17 @@ use serde::Serialize;
 use serde_json::Value;
 use std::cmp::Ordering;
 
-use proxmox_router::{list_subdirs_api_method, Permission, RpcEnvironment};
+use proxmox_router::{list_subdirs_api_method, ApiMethod, Permission, RpcEnvironment};
 use proxmox_router::{Router, SubdirMap};
 use proxmox_schema::api;
 use proxmox_sortable_macro::sortable;
 
+use crate::api2::admin::datastore::get_datastore_list;
 use pbs_api_types::PRIV_SYS_AUDIT;
 
 use crate::api2::admin::prune::list_prune_jobs;
 use crate::api2::admin::sync::list_sync_jobs;
 use crate::api2::admin::verify::list_verification_jobs;
-use crate::api2::config::datastore::list_datastores;
 use crate::api2::config::media_pool::list_pools;
 use crate::api2::tape::backup::list_tape_backup_jobs;
 
@@ -112,16 +112,17 @@ pub fn get_fields() -> Result<Vec<MatchableField>, Error> {
 /// List all known, matchable metadata field values.
 pub fn get_values(
     param: Value,
+    info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<MatchableValue>, Error> {
     let mut values = Vec::new();
 
-    let datastores = list_datastores(param.clone(), rpcenv)?;
+    let datastores = get_datastore_list(param.clone(), info, rpcenv)?;
 
     for datastore in datastores {
         values.push(MatchableValue {
             field: "datastore".into(),
-            value: datastore.name.clone(),
+            value: datastore.store.clone(),
             comment: datastore.comment.clone(),
         });
     }
