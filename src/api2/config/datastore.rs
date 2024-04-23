@@ -222,6 +222,8 @@ pub enum DeletableProperty {
     NotifyUser,
     /// Delete the notify property
     Notify,
+    /// Delete the notification-mode property
+    NotificationMode,
     /// Delete the tuning property
     Tuning,
     /// Delete the maintenance-mode property
@@ -315,6 +317,9 @@ pub fn update_datastore(
                 DeletableProperty::NotifyUser => {
                     data.notify_user = None;
                 }
+                DeletableProperty::NotificationMode => {
+                    data.notification_mode = None;
+                }
                 DeletableProperty::Tuning => {
                     data.tuning = None;
                 }
@@ -383,6 +388,10 @@ pub fn update_datastore(
 
     if update.notify_user.is_some() {
         data.notify_user = update.notify_user;
+    }
+
+    if update.notification_mode.is_some() {
+        data.notification_mode = update.notification_mode;
     }
 
     if update.tuning.is_some() {

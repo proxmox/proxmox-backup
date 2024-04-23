@@ -309,6 +309,10 @@ pub struct DataStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notify: Option<String>,
 
+    /// Opt in to the new notification system
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_mode: Option<NotificationMode>,
+
     /// Datastore tuning options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tuning: Option<String>,
@@ -316,6 +320,23 @@ pub struct DataStoreConfig {
     /// Maintenance mode, type is either 'offline' or 'read-only', message should be enclosed in "
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maintenance_mode: Option<String>,
+}
+
+#[api]
+#[derive(Serialize, Deserialize, Updater, Clone, PartialEq, Default)]
+#[serde(rename_all = "kebab-case")]
+/// Configure how notifications for this datastore should be sent.
+/// `legacy-sendmail` sends email notifications to the user configured
+/// in `notify-user` via the system's `sendmail` executable.
+/// `notification-system` emits matchable notification events to the
+/// notification system.
+pub enum NotificationMode {
+    /// Send notifications via the system's sendmail command to the user
+    /// configured in `notify-user`
+    #[default]
+    LegacySendmail,
+    /// Emit notification events to the notification system
+    NotificationSystem,
 }
 
 impl DataStoreConfig {
@@ -330,6 +351,7 @@ impl DataStoreConfig {
             verify_new: None,
             notify_user: None,
             notify: None,
+            notification_mode: None,
             tuning: None,
             maintenance_mode: None,
         }
