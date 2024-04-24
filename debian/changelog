@@ -1,3 +1,25 @@
+rust-proxmox-backup (3.2.1-1) bookworm; urgency=medium
+
+  * implement Active Directory support:
+    - api: access: add routes for managing AD realms
+    - config: domains: add new "ad" section type for AD realms
+    - realm sync: add sync job for AD realms
+    - manager cli: add sub-command for managing AD realms
+    - docs: user-management: add section about AD realm support
+
+  * auth: fix requesting the TFA write lock exclusively
+
+  * installation: add section about unattended/automatic installation
+
+  * api: tape config: forbid reusing IDs between tape changer and tape drive
+
+  * api: add support for creating and updating VLAN interfaces
+
+  * ui: enable the VLAN widget that got moved over from PVE to the generic
+    widget-toolkit
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 24 Apr 2024 22:05:36 +0200
+
 rust-proxmox-backup (3.2.0-1) bookworm; urgency=medium
 
   * fix #5248: client: allow self-signed/untrusted certificate chains
