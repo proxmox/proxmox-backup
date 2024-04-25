@@ -678,8 +678,6 @@ pub async fn status(
     let user_info = CachedUserInfo::new()?;
     let store_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read));
-
     let store_stats = if store_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP) != 0 {
         true
     } else if store_privs & PRIV_DATASTORE_READ != 0 {
@@ -691,7 +689,8 @@ pub async fn status(
             _ => false,
         }
     };
-    let datastore = datastore?; // only unwrap no to avoid leaking existence info
+
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let (counts, gc_status) = if verbose {
         let filter_owner = if store_privs & PRIV_DATASTORE_AUDIT != 0 {
