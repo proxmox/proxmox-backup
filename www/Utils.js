@@ -469,13 +469,13 @@ Ext.define('PBS.Utils', {
 		name: 'Sendmail',
 		    ipanel: 'pmxSendmailEditPanel',
 		    iconCls: 'fa-envelope-o',
-		    defaultMailAuthor: 'Proxmox Backup Server ($hostname)',
+		    defaultMailAuthor: 'Proxmox Backup Server - $hostname',
 	    },
 	    smtp: {
 		name: 'SMTP',
 		    ipanel: 'pmxSmtpEditPanel',
 		    iconCls: 'fa-envelope-o',
-		    defaultMailAuthor: 'Proxmox Backup Server ($hostname)',
+		    defaultMailAuthor: 'Proxmox Backup Server - $hostname',
 	    },
 	    gotify: {
 		name: 'Gotify',
