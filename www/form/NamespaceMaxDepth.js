@@ -37,10 +37,10 @@ Ext.define('PBS.form.NamespaceMaxDepthReduced', {
 
     calcMaxPrefixLength: function(ns1, ns2) {
 	let maxPrefixLength = 0;
-	if (ns1 !== undefined && ns1 !== null) {
+	if (ns1 !== undefined && ns1 !== null && typeof ns1 === 'string') {
 	    maxPrefixLength = (ns1.match(/[/]/g) || []).length + (ns1 === '' ? 0 : 1);
 	}
-	if (ns2 !== undefined && ns2 !== null) {
+	if (ns2 !== undefined && ns2 !== null && typeof ns2 === 'string') {
 	    let ns2PrefixLength = (ns2.match(/[/]/g) || []).length + (ns2 === '' ? 0 : 1);
 	    if (ns2PrefixLength > maxPrefixLength) {
 		maxPrefixLength = ns2PrefixLength;
