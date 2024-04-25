@@ -1,3 +1,13 @@
+rust-proxmox-backup (3.2.2-1) bookworm; urgency=medium
+
+  * ui: notifications fix empty text format for the default mail author
+
+  * ui: tape backup: do not try to delete the namespace property if its empty
+
+  * ui: sync job: fix error if local namespace is selected first
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 25 Apr 2024 12:06:04 +0200
+
 rust-proxmox-backup (3.2.1-1) bookworm; urgency=medium
 
   * implement Active Directory support:
