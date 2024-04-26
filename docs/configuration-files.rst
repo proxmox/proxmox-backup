@@ -83,6 +83,8 @@ Options
 
 .. include:: config/notifications/config.rst
 
+.. _notifications_priv.cfg:
+
 ``notifications-priv.cfg``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

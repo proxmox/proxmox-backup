@@ -6,39 +6,30 @@ Notifications
 Overview
 --------
 
-Proxmox Backup Server will send notifications if case of noteworthy
-events.
+* Proxmox Backup Server emits :ref:`notification_events` in case of noteworthy
+  events in the system. These events are handled by the notification system.
+  A notification event has metadata, for example a timestamp, a severity level,
+  a type and other metadata fields.
+* :ref:`notification_matchers` route a notification event to one or more notification
+  targets. A matcher can have match rules to selectively route based on the metadata
+  of a notification event.
+* :ref:`notification_targets` are a destination to which a notification event
+  is routed to by a matcher. There are multiple types of target, mail-based
+  (Sendmail and SMTP) and Gotify.
 
-There are a number of different :ref:`Notification Events`,
-each with their own set of metadata fields that can be used in
-notification matchers.
-
-A notification matcher determines *which* notifications shall be sent *where*.
-A matcher has *match rules*, that can be used to
-match on certain notification properties (e.g. timestamp, severity,
-metadata fields).
-If a matcher matches a notification, the notification will be routed
-to a configured set of notification targets.
-
-A notification target is an abstraction for a destination where a
-notification should be sent to - for instance a Gotify server instance,
-or a set of email addresses.
-There are multiple types of notification targets, including
-sendmail, which uses the system's sendmail command to send emails,
-or gotify, which sends a notification to a Gotify instance.
+Datastores and tape backup jobs have a configurable :ref:`notification_mode`.
+It allows you to choose between the notification system and a legacy mode
+for sending notification emails. The legacy mode is equivalent to the
+way notifications were handled before Proxmox Backup Server 3.2.
 
 The notification system can be configured in the GUI under
-``Configuration -> Notifications``. The configuration is stored in
-``/etc/proxmox-backup/notifications.cfg`` and
-``/etc/proxmox-backup/notifications-priv.cfg`` -
+*Configuration → Notifications*. The configuration is stored in
+:ref:`notifications.cfg` and :ref:`notifications_priv.cfg` -
 the latter contains sensitive configuration options such as
 passwords or authentication tokens for notification targets and
 can only be read by ``root``.
 
-Datastores and tape backup jobs have a configurable :ref:`notification_mode`,
-which allows you to choose between the notification system and a legacy mode
-for sending notification emails.
-
+.. _notification_targets:
 
 Notification Targets
 --------------------
@@ -156,7 +147,7 @@ Examples:
 The following severities are in use:
 ``info``, ``notice``, ``warning``, ``error``, ``unknown``.
 
-.. _Notification Events:
+.. _notification_events:
 
 Notification Events
 -------------------
