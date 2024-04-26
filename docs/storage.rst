@@ -314,7 +314,7 @@ Options
 
 There are a few per-datastore options:
 
-* :ref:`Notifications <maintenance_notification>`
+* :ref:`Notification mode and legacy notification settings <notification_mode>`
 * :ref:`Maintenance Mode <maintenance_mode>`
 * Verification of incoming backups
 
@@ -419,7 +419,7 @@ remote-source to avoid that an attacker that took over the source can cause
 deletions of backups on the target hosts.
 If the source-host became victim of a ransomware attack, there is a good chance
 that sync jobs will fail, triggering an :ref:`error notification
-<maintenance_notification>`.
+<Notification Events>`.
 
 It is also possible to create :ref:`tape backups <tape_backup>` as a second
 storage medium. This way, you get an additional copy of your data on a

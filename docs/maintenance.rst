@@ -277,26 +277,10 @@ the **Actions** column in the table.
 Notifications
 -------------
 
-Proxmox Backup Server can send you notification emails about automatically
+Proxmox Backup Server can send you notifications about automatically
 scheduled verification, garbage-collection and synchronization tasks results.
 
-By default, notifications are sent to the email address configured for the
-`root@pam` user. You can instead set this user for each datastore.
-
-.. image:: images/screenshots/pbs-gui-datastore-options.png
-  :target: _images/pbs-gui-datastore-options.png
-  :align: right
-  :alt: Datastore Options
-
-You can also change the level of notification received per task type, the
-following options are available:
-
-* Always: send a notification for any scheduled task, independent of the
-  outcome
-
-* Errors: send a notification for any scheduled task that results in an error
-
-* Never: do not send any notification at all
+Refer to the :ref:`notifications` chapter for more details.
 
 .. _maintenance_mode:
 

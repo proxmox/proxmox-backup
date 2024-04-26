@@ -1,3 +1,5 @@
+.. _notifications:
+
 Notifications
 =============
 
@@ -32,6 +34,10 @@ The notification system can be configured in the GUI under
 the latter contains sensitive configuration options such as
 passwords or authentication tokens for notification targets and
 can only be read by ``root``.
+
+Datastores and tape backup jobs have a configurable :ref:`notification_mode`,
+which allows you to choose between the notification system and a legacy mode
+for sending notification emails.
 
 
 Notification Targets
@@ -211,3 +217,50 @@ Permissions
 In order to modify/view the configuration for notification targets,
 the ``Sys.Modify/Sys.Audit`` permissions are required for the
 ``/system/notifications`` ACL node.
+
+.. _notification_mode:
+
+Notification Mode
+-----------------
+Datastores and tape backup/restore job configuration have a ``notification-mode``
+option which can have one of two values:
+
+* ``legacy-sendmail``: Send notification emails via the system's ``sendmail`` command.
+  The notification system will be bypassed and any configured targets/matchers will be ignored.
+  This mode is equivalent to the notification behavior for version before
+  Proxmox Backup Server 3.2.
+
+* ``notification-system``: Use the new, flexible notification system.
+
+If the ``notification-mode`` option is not set, Proxmox Backup Server will default
+to ``legacy-sendmail``.
+
+Starting with Proxmox Backup Server 3.2, a datastore created in the UI will
+automatically opt in to the new notification system. If the datastore is created
+via the API or the ``proxmox-backup-manager`` CLI, the ``notification-mode``
+option has to be set explicitly to ``notification-system`` if the
+notification system shall be used.
+
+The ``legacy-sendmail`` mode might be removed in a later release of
+Proxmox Backup Server.
+
+Settings for ``legacy-sendmail`` notification mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If ``notification-mode`` is set to ``legacy-sendmail``,  Proxmox Backup Server
+will send notification emails via the system's ``sendmail`` command to the email
+address configured for the user set in the ``notify-user`` option
+(falling back to ``root@pam`` if not set).
+
+For datastores, you can also change the level of notifications received per task
+type via the ``notify`` option.
+
+* Always: send a notification for any scheduled task, independent of the
+  outcome
+
+* Errors: send a notification for any scheduled task that results in an error
+
+* Never: do not send any notification at all
+
+The ``notify-user`` and ``notify`` options are ignored if ``notification-mode``
+is set to ``notification-system``.
