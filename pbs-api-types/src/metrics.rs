@@ -12,14 +12,12 @@ pub const METRIC_SERVER_ID_SCHEMA: Schema = StringSchema::new("Metrics Server ID
     .schema();
 
 pub const INFLUXDB_BUCKET_SCHEMA: Schema = StringSchema::new("InfluxDB Bucket.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
     .default("proxmox")
     .schema();
 
 pub const INFLUXDB_ORGANIZATION_SCHEMA: Schema = StringSchema::new("InfluxDB Organization.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
     .default("proxmox")
@@ -129,13 +127,14 @@ pub struct InfluxDbHttp {
     pub enable: bool,
     /// The base url of the influxdb server
     pub url: String,
-    /// The Optional Token
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The (optional) API token
     pub token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Named location where time series data is stored
     pub bucket: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Workspace for a group of users
     pub organization: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The (optional) maximum body size
