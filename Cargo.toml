@@ -78,7 +78,7 @@ proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
 proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.4.2", features = [ "api-types" ] }
-proxmox-sys = "0.5.3"
+proxmox-sys = "0.5.4"
 proxmox-tfa = { version = "4.0.4", features = [ "api", "api-types" ] }
 proxmox-time = "1.1.6"
 proxmox-uuid = "1"
