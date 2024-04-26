@@ -27,7 +27,7 @@ Ext.define('PBS.window.NotifyOptions', {
     xtype: 'pbsNotifyOptionEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    onlineHelp: 'maintenance_notification',
+    onlineHelp: 'notification_mode',
 
     user: undefined,
     tokenname: undefined,
