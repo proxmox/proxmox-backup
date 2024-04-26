@@ -64,7 +64,7 @@ proxmox-human-byte = "0.1"
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
 proxmox-ldap = "0.2.1"
-proxmox-metrics = "0.3"
+proxmox-metrics = "0.3.1"
 proxmox-notify = "0.4"
 proxmox-openid = "0.10.0"
 proxmox-rest-server = { version = "0.5.1", features = [ "templates" ] }
