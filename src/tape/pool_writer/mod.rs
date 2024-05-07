@@ -43,7 +43,7 @@ struct PoolWriterState {
     media_uuid: Uuid,
     // tell if we already moved to EOM
     at_eom: bool,
-    // bytes written after the last tape fush/sync
+    // bytes written after the last tape flush/sync and catalog commit
     bytes_written: usize,
 }
 
@@ -200,8 +200,9 @@ impl PoolWriter {
     /// This is done automatically during a backupsession, but needs to
     /// be called explicitly before dropping the PoolWriter
     pub fn commit(&mut self) -> Result<(), Error> {
-        if let Some(PoolWriterState { ref mut drive, .. }) = self.status {
-            drive.sync()?; // sync all data to the tape
+        if let Some(ref mut status) = self.status {
+            status.drive.sync()?; // sync all data to the tape
+            status.bytes_written = 0; // reset bytes written
         }
         self.catalog_set.lock().unwrap().commit()?; // then commit the catalog
         Ok(())
