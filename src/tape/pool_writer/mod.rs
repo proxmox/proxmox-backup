@@ -44,7 +44,7 @@ struct PoolWriterState {
     // tell if we already moved to EOM
     at_eom: bool,
     // bytes written after the last tape flush/sync and catalog commit
-    bytes_written: usize,
+    bytes_written_after_sync: usize,
 }
 
 /// Helper to manage a backup job, writing several tapes of a pool
@@ -202,7 +202,7 @@ impl PoolWriter {
     pub fn commit(&mut self) -> Result<(), Error> {
         if let Some(ref mut status) = self.status {
             status.drive.sync()?; // sync all data to the tape
-            status.bytes_written = 0; // reset bytes written
+            status.bytes_written_after_sync = 0; // reset bytes written
         }
         self.catalog_set.lock().unwrap().commit()?; // then commit the catalog
         Ok(())
@@ -292,7 +292,7 @@ impl PoolWriter {
             drive,
             media_uuid: media_uuid.clone(),
             at_eom: false,
-            bytes_written: 0,
+            bytes_written_after_sync: 0,
         });
 
         if is_new_media {
@@ -481,9 +481,9 @@ impl PoolWriter {
             }
         };
 
-        status.bytes_written += bytes_written;
+        status.bytes_written_after_sync += bytes_written;
 
-        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
+        let request_sync = status.bytes_written_after_sync >= COMMIT_BLOCK_SIZE;
 
         if !done || request_sync {
             self.commit()?;
@@ -516,7 +516,7 @@ impl PoolWriter {
         let (saved_chunks, content_uuid, leom, bytes_written) =
             write_chunk_archive(worker, writer, chunk_iter, store, MAX_CHUNK_ARCHIVE_SIZE)?;
 
-        status.bytes_written += bytes_written;
+        status.bytes_written_after_sync += bytes_written;
 
         let elapsed = start_time.elapsed()?.as_secs_f64();
         task_log!(
@@ -527,7 +527,7 @@ impl PoolWriter {
             (bytes_written as f64) / (1_000_000.0 * elapsed),
         );
 
-        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
+        let request_sync = status.bytes_written_after_sync >= COMMIT_BLOCK_SIZE;
 
         // register chunks in media_catalog
         self.catalog_set.lock().unwrap().register_chunk_archive(
