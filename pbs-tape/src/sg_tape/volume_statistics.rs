@@ -46,10 +46,10 @@ fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error>
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct LpParameterHeader {
-    parameter_code: u16,
-    control: u8,
-    parameter_len: u8,
+pub(crate) struct LpParameterHeader {
+    pub parameter_code: u16,
+    pub control: u8,
+    pub parameter_len: u8,
 }
 
 fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> {

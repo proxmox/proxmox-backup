@@ -15,6 +15,9 @@ mod volume_statistics;
 use proxmox_uuid::Uuid;
 pub use volume_statistics::*;
 
+mod device_status;
+pub use device_status::*;
+
 mod tape_alert_flags;
 pub use tape_alert_flags::*;
 
