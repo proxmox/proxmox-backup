@@ -31,7 +31,8 @@ use proxmox_io::{ReadExt, WriteExt};
 use proxmox_sys::error::SysResult;
 
 use pbs_api_types::{
-    Lp17VolumeStatistics, LtoDriveAndMediaStatus, LtoTapeDrive, MamAttribute, TapeDensity,
+    DeviceActivity, Lp17VolumeStatistics, LtoDriveAndMediaStatus, LtoTapeDrive, MamAttribute,
+    TapeDensity,
 };
 
 use crate::linux_list_drives::open_lto_tape_device;
@@ -960,6 +961,7 @@ impl SgTape {
     pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error> {
         let drive_status = self.read_drive_status()?;
 
+        let drive_activity = read_device_activity(&mut self.file).ok();
         let alert_flags = self
             .tape_alert_flags()
             .map(|flags| format!("{:?}", flags))
@@ -983,6 +985,7 @@ impl SgTape {
             medium_passes: None,
             medium_wearout: None,
             volume_mounts: None,
+            drive_activity,
         };
 
         if self.test_unit_ready().is_ok() {

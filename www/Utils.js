@@ -659,6 +659,9 @@ Ext.define('PBS.Utils', {
 	    if (key === 'bytes-read' || key === 'bytes-written') {
 		val = Proxmox.Utils.format_size(val);
 	    }
+	    if (key === 'drive-activity') {
+		val = PBS.Utils.renderDriveActivity(val);
+	    }
 	    list.push({ key: key, value: val });
 	}
 
@@ -690,6 +693,32 @@ Ext.define('PBS.Utils', {
 		},
 	    ],
 	}).show();
+    },
+
+    tapeDriveActivities: {
+	'no-activity': gettext('No Activity'),
+	'cleaning': gettext('Cleaning'),
+	'loading': gettext('Loading'),
+	'unloading': gettext('Unloading'),
+	'other': gettext('Other Activity'),
+	'reading': gettext('Reading data'),
+	'writing': gettext('Writing data'),
+	'locating': gettext('Locating'),
+	'rewinding': gettext('Rewinding'),
+	'erasing': gettext('Erasing'),
+	'formatting': gettext('Formatting'),
+	'calibrating': gettext('Calibrating'),
+	'other-dt': gettext('Other DT Activity'),
+	'microcode-update': gettext('Updating Microcode'),
+	'reading-encrypted': gettext('Reading encrypted data'),
+	'writing-encrypted': gettext('Writing encrypted data'),
+    },
+
+    renderDriveActivity: function(value) {
+	if (!value) {
+	    return Proxmox.Utils.unknownText;
+	}
+	return PBS.Utils.tapeDriveActivities[value] ?? value;
     },
 
     renderDriveState: function(value, md) {

@@ -216,6 +216,9 @@ pub struct LtoDriveAndMediaStatus {
     /// Estimated tape wearout factor (assuming max. 16000 end-to-end passes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub medium_wearout: Option<f64>,
+    /// Current device activity
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub drive_activity: Option<DeviceActivity>,
 }
 
 #[api()]

@@ -348,6 +348,10 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    header: gettext('Compression'),
 	    renderer: Proxmox.Utils.format_boolean,
 	},
+	'drive-activity': {
+	    header: gettext('Drive Activity'),
+	    renderer: PBS.Utils.renderDriveActivity,
+	},
 	'file-number': {
 	    header: gettext('Tape Position'),
 	    renderer: function(value, mD, r, rI, cI, store) {
