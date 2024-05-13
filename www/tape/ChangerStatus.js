@@ -1,6 +1,6 @@
 Ext.define('pbs-slot-model', {
     extend: 'Ext.data.Model',
-    fields: ['entry-id', 'label-text', 'is-labeled', ' model', 'name', 'vendor', 'serial', 'state', 'status', 'pool',
+    fields: ['entry-id', 'label-text', 'is-labeled', ' model', 'name', 'vendor', 'serial', 'state', 'status', 'pool', 'activity',
 	{
 	    name: 'is-blocked',
 	    calculate: function(data) {
@@ -488,7 +488,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		});
 		let drives_fut = Proxmox.Async.api2({
 		    timeout: 5*60*1000,
-		    url: `/api2/extjs/tape/drive?changer=${encodeURIComponent(changer)}`,
+		    url: `/api2/extjs/tape/drive?query-activity=true&changer=${encodeURIComponent(changer)}`,
 		});
 
 		let tapes_fut = Proxmox.Async.api2({
@@ -851,6 +851,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    dataIndex: 'name',
 				    flex: 1,
 				    renderer: Ext.htmlEncode,
+				},
+				{
+				    text: gettext('Activity'),
+				    dataIndex: 'activity',
+				    renderer: PBS.Utils.renderDriveActivity,
+				    hidden: true,
+				    flex: 1,
 				},
 				{
 				    text: gettext('State'),

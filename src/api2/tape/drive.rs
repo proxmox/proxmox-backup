@@ -3,6 +3,7 @@ use std::panic::UnwindSafe;
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
+use pbs_tape::sg_tape::SgTape;
 use serde_json::Value;
 
 use proxmox_router::{
@@ -1411,6 +1412,12 @@ pub fn catalog_media(
                 schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
+            "query-activity": {
+                type: bool,
+                description: "If true, queries and returns the drive activity for each drive.",
+                optional: true,
+                default: false,
+            },
         },
     },
     returns: {
@@ -1428,6 +1435,7 @@ pub fn catalog_media(
 /// List drives
 pub fn list_drives(
     changer: Option<String>,
+    query_activity: bool,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DriveListEntry>, Error> {
@@ -1454,10 +1462,16 @@ pub fn list_drives(
 
         let info = lookup_device_identification(&lto_drives, &drive.path);
         let state = get_tape_device_state(&config, &drive.name)?;
+        let activity = if query_activity {
+            SgTape::device_activity(&drive).ok()
+        } else {
+            None
+        };
         let entry = DriveListEntry {
             config: drive,
             info,
             state,
+            activity,
         };
         list.push(entry);
     }

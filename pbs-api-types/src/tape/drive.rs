@@ -93,6 +93,9 @@ pub struct DriveListEntry {
     /// the state of the drive if locked
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
+    /// Current device activity
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub activity: Option<DeviceActivity>,
 }
 
 #[api()]

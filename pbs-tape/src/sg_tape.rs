@@ -172,6 +172,12 @@ impl SgTape {
         })
     }
 
+    /// Read device activity
+    pub fn device_activity(config: &LtoTapeDrive) -> Result<DeviceActivity, Error> {
+        let mut file = open_lto_tape_device(&config.path)?;
+        read_device_activity(&mut file)
+    }
+
     /// Access to file descriptor - useful for testing
     pub fn file_mut(&mut self) -> &mut File {
         &mut self.file

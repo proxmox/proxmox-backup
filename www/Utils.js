@@ -721,8 +721,11 @@ Ext.define('PBS.Utils', {
 	return PBS.Utils.tapeDriveActivities[value] ?? value;
     },
 
-    renderDriveState: function(value, md) {
+    renderDriveState: function(value, md, rec) {
 	if (!value) {
+	    if (rec?.data?.activity && rec?.data?.activity !== 'no-activity') {
+		return PBS.Utils.renderDriveActivity(rec.data.activity);
+	    }
 	    return gettext('Idle');
 	}
 
