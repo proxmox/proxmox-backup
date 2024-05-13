@@ -212,8 +212,11 @@ impl MediaPool {
         }
 
         let (status, location) = self.compute_media_state(&media_id);
+        let bytes_used = self.inventory.get_media_bytes_used(uuid);
 
-        Ok(BackupMedia::with_media_id(media_id, location, status))
+        Ok(BackupMedia::with_media_id(
+            media_id, location, status, bytes_used,
+        ))
     }
 
     /// List all media associated with this pool
@@ -224,7 +227,8 @@ impl MediaPool {
             .into_iter()
             .map(|media_id| {
                 let (status, location) = self.compute_media_state(&media_id);
-                BackupMedia::with_media_id(media_id, location, status)
+                let bytes_used = self.inventory.get_media_bytes_used(&media_id.label.uuid);
+                BackupMedia::with_media_id(media_id, location, status, bytes_used)
             })
             .collect()
     }
@@ -236,6 +240,15 @@ impl MediaPool {
             self.inventory.set_media_status_full(uuid)?;
         }
         Ok(())
+    }
+
+    /// Update bytes used for media in inventory
+    pub fn set_media_bytes_used(
+        &mut self,
+        uuid: &Uuid,
+        bytes_used: Option<u64>,
+    ) -> Result<(), Error> {
+        self.inventory.set_media_bytes_used(uuid, bytes_used)
     }
 
     /// Make sure the current media set is usable for writing
@@ -715,15 +728,23 @@ pub struct BackupMedia {
     location: MediaLocation,
     /// Media status
     status: MediaStatus,
+    /// Bytes used
+    bytes_used: Option<u64>,
 }
 
 impl BackupMedia {
     /// Creates a new instance
-    pub fn with_media_id(id: MediaId, location: MediaLocation, status: MediaStatus) -> Self {
+    pub fn with_media_id(
+        id: MediaId,
+        location: MediaLocation,
+        status: MediaStatus,
+        bytes_used: Option<u64>,
+    ) -> Self {
         Self {
             id,
             location,
             status,
+            bytes_used,
         }
     }
 
@@ -775,5 +796,10 @@ impl BackupMedia {
     /// Returns the media label (Barcode)
     pub fn label_text(&self) -> &str {
         &self.id.label.label_text
+    }
+
+    /// Returns the bytes used, if set
+    pub fn bytes_used(&self) -> Option<u64> {
+        self.bytes_used
     }
 }

@@ -16,6 +16,7 @@ Ext.define('pbs-model-tapes', {
 	'seq-nr',
 	'status',
 	'uuid',
+	'bytes-used',
     ],
     idProperty: 'uuid',
     proxy: {
@@ -325,6 +326,12 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    dataIndex: 'uuid',
 	    flex: 1,
 	    hidden: true,
+	},
+	{
+	    text: gettext("Bytes Used"),
+	    dataIndex: 'bytes-used',
+	    flex: 1,
+	    renderer: Proxmox.Utils.render_size,
 	},
     ],
 });

@@ -242,6 +242,9 @@ pub trait TapeDriver {
         }
         Ok(())
     }
+
+    /// Returns volume statistics from a loaded tape
+    fn get_volume_statistics(&mut self) -> Result<pbs_api_types::Lp17VolumeStatistics, Error>;
 }
 
 /// A boxed implementor of [`MediaChange`].

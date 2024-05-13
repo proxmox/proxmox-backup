@@ -461,6 +461,10 @@ impl TapeDriver for VirtualTapeHandle {
         let status = VirtualDriveStatus { current_tape: None };
         self.store_status(&status)
     }
+
+    fn get_volume_statistics(&mut self) -> Result<pbs_api_types::Lp17VolumeStatistics, Error> {
+        Ok(Default::default())
+    }
 }
 
 impl MediaChange for VirtualTapeHandle {

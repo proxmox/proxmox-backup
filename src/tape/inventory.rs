@@ -84,6 +84,8 @@ struct MediaStateEntry {
     location: Option<MediaLocation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     status: Option<MediaStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_used: Option<u64>,
 }
 
 /// Media Inventory
@@ -211,6 +213,7 @@ impl Inventory {
                 } else {
                     previous.status
                 },
+                bytes_used: previous.bytes_used,
             };
             self.map.insert(uuid, entry);
         } else {
@@ -218,6 +221,7 @@ impl Inventory {
                 id: media_id,
                 location: None,
                 status: None,
+                bytes_used: None,
             };
             self.map.insert(uuid, entry);
         }
@@ -718,6 +722,32 @@ impl Inventory {
     /// Lock database, reload database, set location to offline, store database
     pub fn set_media_location_offline(&mut self, uuid: &Uuid) -> Result<(), Error> {
         self.set_media_location(uuid, Some(MediaLocation::Offline))
+    }
+
+    /// Lock database, reload database, set bytes used for media, store database
+    pub fn set_media_bytes_used(
+        &mut self,
+        uuid: &Uuid,
+        bytes_used: Option<u64>,
+    ) -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = self.load_media_db()?;
+        if let Some(entry) = self.map.get_mut(uuid) {
+            entry.bytes_used = bytes_used;
+            self.update_helpers();
+            self.replace_file()?;
+            Ok(())
+        } else {
+            bail!("no such media '{}'", uuid);
+        }
+    }
+
+    /// Returns bytes used of the given media, if set
+    pub fn get_media_bytes_used(&self, uuid: &Uuid) -> Option<u64> {
+        match self.map.get(uuid) {
+            Some(entry) => entry.bytes_used,
+            None => None,
+        }
     }
 
     /// Update online status

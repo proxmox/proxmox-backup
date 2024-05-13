@@ -203,6 +203,14 @@ impl PoolWriter {
         if let Some(ref mut status) = self.status {
             status.drive.sync()?; // sync all data to the tape
             status.bytes_written_after_sync = 0; // reset bytes written
+
+            // not all drives support that
+            if let Ok(stats) = status.drive.get_volume_statistics() {
+                self.pool.set_media_bytes_used(
+                    &status.media_uuid,
+                    Some(stats.total_used_native_capacity),
+                )?;
+            }
         }
         self.catalog_set.lock().unwrap().commit()?; // then commit the catalog
         Ok(())
@@ -237,7 +245,13 @@ impl PoolWriter {
         );
 
         if let Some(PoolWriterState { mut drive, .. }) = self.status.take() {
-            if last_media_uuid.is_some() {
+            if let Some(uuid) = &last_media_uuid {
+                // not all drives support that
+                if let Ok(stats) = drive.get_volume_statistics() {
+                    self.pool
+                        .set_media_bytes_used(uuid, Some(stats.total_used_native_capacity))?;
+                }
+
                 task_log!(worker, "eject current media");
                 drive.eject_media()?;
             }

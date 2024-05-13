@@ -204,6 +204,7 @@ pub async fn list_media(
                 media_set_uuid,
                 media_set_name,
                 seq_nr,
+                bytes_used: media.bytes_used(),
             });
         }
     }
@@ -232,6 +233,7 @@ pub async fn list_media(
                 media_set_ctime: None,
                 seq_nr: None,
                 pool: None,
+                bytes_used: inventory.get_media_bytes_used(&media_id.label.uuid),
             });
         }
     }
@@ -279,6 +281,7 @@ pub async fn list_media(
             media_set_uuid,
             media_set_name,
             seq_nr,
+            bytes_used: inventory.get_media_bytes_used(&media_id.label.uuid),
         });
     }
 
