@@ -962,10 +962,18 @@ impl SgTape {
         let drive_status = self.read_drive_status()?;
 
         let drive_activity = read_device_activity(&mut self.file).ok();
-        let alert_flags = self
-            .tape_alert_flags()
-            .map(|flags| format!("{:?}", flags))
-            .ok();
+
+        // some operations block when the tape moves, which can take up to 2 hours
+        // (e.g. for calibrating) so skip those queries while it's doing that
+        let is_moving = !matches!(drive_activity, None | Some(DeviceActivity::NoActivity));
+
+        let alert_flags = if !is_moving {
+            self.tape_alert_flags()
+                .map(|flags| format!("{:?}", flags))
+                .ok()
+        } else {
+            None
+        };
 
         let mut status = LtoDriveAndMediaStatus {
             vendor: self.info().vendor.clone(),
@@ -993,10 +1001,12 @@ impl SgTape {
                 status.write_protect = Some(drive_status.write_protect);
             }
 
-            let position = self.position()?;
+            if !is_moving {
+                let position = self.position()?;
 
-            status.file_number = Some(position.logical_file_id);
-            status.block_number = Some(position.logical_object_number);
+                status.file_number = Some(position.logical_file_id);
+                status.block_number = Some(position.logical_object_number);
+            }
 
             if let Ok(mam) = self.cartridge_memory() {
                 match mam_extract_media_usage(&mam) {
@@ -1010,20 +1020,22 @@ impl SgTape {
                     }
                 }
 
-                if let Ok(volume_stats) = self.volume_statistics() {
-                    let passes = std::cmp::max(
-                        volume_stats.beginning_of_medium_passes,
-                        volume_stats.middle_of_tape_passes,
-                    );
+                if !is_moving {
+                    if let Ok(volume_stats) = self.volume_statistics() {
+                        let passes = std::cmp::max(
+                            volume_stats.beginning_of_medium_passes,
+                            volume_stats.middle_of_tape_passes,
+                        );
 
-                    // assume max. 16000 medium passes
-                    // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
-                    let wearout: f64 = (passes as f64) / 16000.0_f64;
+                        // assume max. 16000 medium passes
+                        // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
+                        let wearout: f64 = (passes as f64) / 16000.0_f64;
 
-                    status.medium_passes = Some(passes);
-                    status.medium_wearout = Some(wearout);
+                        status.medium_passes = Some(passes);
+                        status.medium_wearout = Some(wearout);
 
-                    status.volume_mounts = Some(volume_stats.volume_mounts);
+                        status.volume_mounts = Some(volume_stats.volume_mounts);
+                    }
                 }
             }
         }
