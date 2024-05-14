@@ -28,6 +28,7 @@ enum MamFormat {
     BINARY,
     ASCII,
     DEC,
+    TEXT,
 }
 
 struct MamType {
@@ -54,6 +55,9 @@ impl MamType {
     }
     const fn dec(id: u16, len: u16, description: &'static str) -> Self {
         Self::new(id, len, MamFormat::DEC, description)
+    }
+    const fn text(id: u16, len: u16, description: &'static str) -> Self {
+        Self::new(id, len, MamFormat::TEXT, description)
     }
 }
 
@@ -95,12 +99,12 @@ static MAM_ATTRIBUTES: &[MamType] = &[
     MamType::ascii(0x08_00, 8, "Application Vendor"),
     MamType::ascii(0x08_01, 32, "Application Name"),
     MamType::ascii(0x08_02, 8, "Application Version"),
-    MamType::ascii(0x08_03, 160, "User Medium Text Label"),
+    MamType::text(0x08_03, 160, "User Medium Text Label"),
     MamType::ascii(0x08_04, 12, "Date And Time Last Written"),
     MamType::bin(0x08_05, 1, "Text Localization Identifier"),
     MamType::ascii(0x08_06, 32, "Barcode"),
     MamType::ascii(0x08_07, 80, "Owning Host Textual Name"),
-    MamType::ascii(0x08_08, 160, "Media Pool"),
+    MamType::text(0x08_08, 160, "Media Pool"),
     MamType::ascii(0x08_0B, 16, "Application Format Version"),
     // length for vol. coherency is not specified for IBM, and HP says 23-n
     MamType::bin(0x08_0C, 0, "Volume Coherency Information"),
@@ -188,7 +192,7 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
         };
         if info.len == 0 || info.len == head.len {
             let value = match info.format {
-                MamFormat::ASCII => String::from_utf8_lossy(&data).to_string(),
+                MamFormat::ASCII | MamFormat::TEXT => String::from_utf8_lossy(&data).to_string(),
                 MamFormat::DEC => {
                     if info.len == 2 {
                         format!("{}", u16::from_be_bytes(data[0..2].try_into()?))
