@@ -295,6 +295,8 @@ impl SgTape {
                 self.erase_media(fast)?
             }
 
+            self.clear_mam_attributes();
+
             Ok(())
         }
     }
@@ -1047,6 +1049,43 @@ impl SgTape {
         }
 
         Ok(status)
+    }
+
+    /// Tries to write useful attributes to the MAM like Vendor/Application/Version
+    pub fn write_mam_attributes(&mut self, label: Option<String>, pool: Option<String>) {
+        let version = format!(
+            "{}-{}",
+            pbs_buildcfg::PROXMOX_PKG_VERSION,
+            pbs_buildcfg::PROXMOX_PKG_RELEASE
+        );
+        let mut attribute_list: Vec<(u16, &[u8])> = vec![
+            (0x08_00, b"Proxmox"),
+            (0x08_01, b"Backup Server"),
+            (0x08_02, version.as_bytes()),
+        ];
+        if let Some(ref label) = label {
+            attribute_list.push((0x08_03, label.as_bytes()));
+        }
+
+        if let Some(ref pool) = pool {
+            attribute_list.push((0x08_08, pool.as_bytes()));
+        }
+
+        for (id, data) in attribute_list {
+            if let Err(err) = write_mam_attribute(&mut self.file, id, data) {
+                log::warn!("could not set MAM Attribute {id:x}: {err}");
+            }
+        }
+    }
+
+    // clear all custom set mam attributes
+    fn clear_mam_attributes(&mut self) {
+        for attr in [0x08_00, 0x08_01, 0x08_02, 0x08_03, 0x08_08] {
+            // ignore error
+            if let Err(err) = write_mam_attribute(&mut self.file, attr, b"") {
+                log::warn!("could not clear MAM attribute {attr:x}: {err}");
+            }
+        }
     }
 }
 

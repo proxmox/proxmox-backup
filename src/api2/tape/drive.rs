@@ -606,6 +606,8 @@ fn write_media_label(
 
     drive.rewind()?;
 
+    drive.write_additional_attributes(Some(media_id.label.label_text), pool);
+
     Ok(())
 }
 

@@ -245,6 +245,11 @@ pub trait TapeDriver {
 
     /// Returns volume statistics from a loaded tape
     fn get_volume_statistics(&mut self) -> Result<pbs_api_types::Lp17VolumeStatistics, Error>;
+
+    /// Writes additional attributes on the drive, like the vendor/application/etc. (e.g. on MAM)
+    ///
+    /// Since it's not fatal when it does not work, it only logs warnings in that case
+    fn write_additional_attributes(&mut self, label: Option<String>, pool: Option<String>);
 }
 
 /// A boxed implementor of [`MediaChange`].

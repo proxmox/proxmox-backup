@@ -225,6 +225,8 @@ impl TapeDriver for LtoTapeHandle {
 
         self.set_encryption(encrypt_fingerprint)?;
 
+        self.write_additional_attributes(None, Some(media_set_label.pool.clone()));
+
         Ok(())
     }
 
@@ -271,6 +273,10 @@ impl TapeDriver for LtoTapeHandle {
 
     fn get_volume_statistics(&mut self) -> Result<pbs_api_types::Lp17VolumeStatistics, Error> {
         self.volume_statistics()
+    }
+
+    fn write_additional_attributes(&mut self, label: Option<String>, pool: Option<String>) {
+        self.sg_tape.write_mam_attributes(label, pool)
     }
 }
 

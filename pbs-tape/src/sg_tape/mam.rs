@@ -8,7 +8,7 @@ use proxmox_io::ReadExt;
 
 use pbs_api_types::MamAttribute;
 
-use crate::sgutils2::SgRaw;
+use crate::sgutils2::{alloc_page_aligned_buffer, SgRaw};
 
 use super::TapeAlertFlags;
 
@@ -141,6 +141,65 @@ fn read_tape_mam<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
         .do_command(&cmd)
         .map_err(|err| format_err!("read cartidge memory failed - {}", err))
         .map(|v| v.to_vec())
+}
+
+/// Write attribute to MAM
+pub fn write_mam_attribute<F: AsRawFd>(
+    file: &mut F,
+    attribute_id: u16,
+    data: &[u8],
+) -> Result<(), Error> {
+    let mut sg_raw = SgRaw::new(file, 0)?;
+
+    let mut parameters = Vec::new();
+
+    let attribute = MAM_ATTRIBUTE_NAMES
+        .get(&attribute_id)
+        .ok_or_else(|| format_err!("MAM attribute '{attribute_id:x}' unknown"))?;
+
+    let mut attr_data = Vec::new();
+    attr_data.extend(attribute_id.to_be_bytes());
+    attr_data.push(match attribute.format {
+        MamFormat::BINARY | MamFormat::DEC => 0x00,
+        MamFormat::ASCII => 0x01,
+        MamFormat::TEXT => 0x02,
+    });
+    let len = if data.is_empty() { 0 } else { attribute.len };
+    attr_data.extend(len.to_be_bytes());
+    attr_data.extend(data);
+    if !data.is_empty() && data.len() < attribute.len as usize {
+        attr_data.resize(attr_data.len() - data.len() + attribute.len as usize, 0);
+    } else if data.len() > u16::MAX as usize {
+        bail!("data to long");
+    }
+
+    parameters.extend(attr_data);
+
+    let mut data_out = alloc_page_aligned_buffer(parameters.len() + 4)?;
+    data_out[..4].copy_from_slice(&(parameters.len() as u32).to_be_bytes());
+    data_out[4..].copy_from_slice(&parameters);
+
+    let mut cmd = vec![
+        0x8d, // WRITE ATTRIBUTE CDB (8Dh)
+        0x01, // WTC=1
+        0x00, // reserved
+        0x00, // reserved
+        0x00, // reserved
+        0x00, // Volume Number
+        0x00, // reserved
+        0x00, // Partition Number
+        0x00, // reserved
+        0x00, // reserved
+    ];
+    cmd.extend((data_out.len() as u32).to_be_bytes());
+    cmd.extend([
+        0x00, // reserved
+        0x00, // reserved
+    ]);
+
+    sg_raw.do_out_command(&cmd, &data_out)?;
+
+    Ok(())
 }
 
 /// Read Medium auxiliary memory attributes (cartridge memory) using raw SCSI command.
