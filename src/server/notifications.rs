@@ -332,7 +332,7 @@ pub fn send_sync_status(job: &SyncJobConfig, result: &Result<(), Error>) -> Resu
     let (email, notify, mode) = lookup_datastore_notify_settings(&job.store);
     match mode {
         NotificationMode::LegacySendmail => {
-            let notify = notify.prune.unwrap_or(Notify::Error);
+            let notify = notify.sync.unwrap_or(Notify::Always);
 
             if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
                 return Ok(());
