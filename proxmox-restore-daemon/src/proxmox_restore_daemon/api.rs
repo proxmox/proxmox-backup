@@ -182,12 +182,17 @@ fn list(
                         let mut full_path = PathBuf::new();
                         full_path.push(param_path_buf);
                         full_path.push(path);
-                        let entry = get_dir_entry(&full_vm_path);
-                        if let Ok(entry) = entry {
-                            res.push(ArchiveEntry::new(
+                        match get_dir_entry(&full_vm_path) {
+                            Ok(entry) => res.push(ArchiveEntry::new(
                                 full_path.as_os_str().as_bytes(),
                                 Some(&entry),
-                            ));
+                            )),
+                            Err(err) => {
+                                eprintln!(
+                                    "error getting entry: {:?} : {err}",
+                                    full_path.as_os_str()
+                                );
+                            }
                         }
                     }
                 }
