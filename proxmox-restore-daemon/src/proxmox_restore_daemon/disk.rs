@@ -37,6 +37,7 @@ lazy_static! {
         m.insert("ufs", "ufstype=ufs2");
 
         m.insert("ntfs", "utf8");
+        m.insert("ntfs3", "iocharset=utf8");
 
         m
     };
