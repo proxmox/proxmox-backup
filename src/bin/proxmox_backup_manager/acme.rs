@@ -126,6 +126,8 @@ async fn register_account(
                     }
                     Ok(n) if n == KNOWN_ACME_DIRECTORIES.len() => {
                         input.clear();
+                        print!("Enter custom directory URI: ");
+                        std::io::stdout().flush()?;
                         std::io::stdin().read_line(&mut input)?;
                         break (input.trim().to_owned(), true);
                     }
