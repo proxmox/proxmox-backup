@@ -119,18 +119,21 @@ fn dump_journal(
         },
     },
     returns: {
-        type: Object,
+        type: Array,
         description: "Returns a list of syslog entries.",
-        properties: {
-            n: {
-                type: Integer,
-                description: "Line number.",
+        items: {
+            description: "Syslog line with line number.",
+            properties: {
+                n: {
+                    type: Integer,
+                    description: "Line number.",
+                },
+                t: {
+                    type: String,
+                    description: "Line text.",
+                }
             },
-            t: {
-                type: String,
-                description: "Line text.",
-            }
-        },
+        }
     },
     access: {
         permission: &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
