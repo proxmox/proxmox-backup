@@ -406,5 +406,9 @@ const proxmoxOnlineHelpInfo = {
   "user-realms-ldap": {
     "link": "/docs/user-management.html#user-realms-ldap",
     "title": "LDAP"
+  },
+  "user-realms-ad": {
+    "link": "/docs/user-management.html#user-realms-ad",
+    "title": "Active Directory"
   }
 };
