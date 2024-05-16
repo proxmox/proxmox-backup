@@ -155,7 +155,6 @@ Ext.define('PBS.config.GCJobView', {
 	    header: gettext('Datastore'),
 	    dataIndex: 'store',
 	    renderer: Ext.String.htmlEncode,
-	    sortable: true,
 	    hideable: false,
 	    minWidth: 120,
 	    maxWidth: 300,
@@ -164,7 +163,6 @@ Ext.define('PBS.config.GCJobView', {
 	{
 	    header: gettext('Schedule'),
 	    dataIndex: 'schedule',
-	    sortable: false,
 	    hideable: false,
 	    renderer: (value) => value ? value : Proxmox.Utils.NoneText,
 	    minWidth: 85,
@@ -174,7 +172,6 @@ Ext.define('PBS.config.GCJobView', {
 	    header: gettext('Last GC'),
 	    dataIndex: 'last-run-endtime',
 	    renderer: PBS.Utils.render_optional_timestamp,
-	    sortable: true,
 	    minWidth: 150,
 	    flex: 1,
 	},
@@ -182,7 +179,6 @@ Ext.define('PBS.config.GCJobView', {
 	    text: gettext('Duration'),
 	    dataIndex: 'duration',
 	    renderer: Proxmox.Utils.render_duration,
-	    sortable: false,
 	    minWidth: 80,
 	    flex: 1,
 	},
@@ -190,7 +186,6 @@ Ext.define('PBS.config.GCJobView', {
 	    header: gettext('Last Status'),
 	    dataIndex: 'last-run-state',
 	    renderer: PBS.Utils.render_task_status,
-	    sortable: true,
 	    minWidth: 80,
 	    flex: 1,
 	},
@@ -198,7 +193,6 @@ Ext.define('PBS.config.GCJobView', {
 	    header: gettext('Next Run'),
 	    dataIndex: 'next-run',
 	    renderer: PBS.Utils.render_next_task_run,
-	    sortable: true,
 	    minWidth: 150,
 	    flex: 1,
 	},
@@ -207,7 +201,6 @@ Ext.define('PBS.config.GCJobView', {
 	    dataIndex: 'removed-bytes',
 	    renderer: (value, meta, record) => record.data.upid !== null
 		? Proxmox.Utils.format_size(value, true) : "-",
-	    sortable: false,
 	    minWidth: 85,
 	    flex: 1,
 	},
@@ -216,7 +209,6 @@ Ext.define('PBS.config.GCJobView', {
 	    dataIndex: 'pending-bytes',
 	    renderer: (value, meta, record) => record.data.upid !== null
 		? Proxmox.Utils.format_size(value, true) : "-",
-	    sortable: false,
 	    minWidth: 80,
 	    flex: 3,
 	},
@@ -224,12 +216,12 @@ Ext.define('PBS.config.GCJobView', {
 
     initComponent: function() {
 	let me = this;
-	let hideLocalDatastore = !!me.datastore;
+	let isSingleDatastore = !!me.datastore;
 
 	for (let column of me.columns) {
+	    column.sortable = !isSingleDatastore;
 	    if (column.dataIndex === 'store') {
-		column.hidden = hideLocalDatastore;
-		break;
+		column.hidden = isSingleDatastore;
 	    }
 	}
 
