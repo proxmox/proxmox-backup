@@ -16,7 +16,6 @@ Ext.define('PBS.config.GCJobView', {
     alias: 'widget.pbsGCJobView',
 
     stateful: true,
-    stateId: 'grid-gc-jobs-v1',
     allowDeselect: false,
 
     title: gettext('Garbage Collect Jobs'),
@@ -217,6 +216,8 @@ Ext.define('PBS.config.GCJobView', {
     initComponent: function() {
 	let me = this;
 	let isSingleDatastore = !!me.datastore;
+
+	me.stateId = isSingleDatastore ? 'grid-gc-jobs-single' : 'grid-gc-jobs-v1';
 
 	for (let column of me.columns) {
 	    column.sortable = !isSingleDatastore;
