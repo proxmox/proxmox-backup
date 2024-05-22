@@ -1,5 +1,11 @@
 //! Exports configuration data from the build system
 
+pub const PROXMOX_BACKUP_CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// TODO: clean-up, drop the RELEASE one, should not be required on its own and if it would be just
+// the X.Y part, also add the Debian package revision (extracted through build.rs) in an existing
+// or new constant.
+
 pub const PROXMOX_PKG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION_MAJOR"),
     ".",
