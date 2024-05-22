@@ -1,3 +1,52 @@
+rust-proxmox-backup (3.2.3-1) bookworm; urgency=medium
+
+  * api-types: remove influxdb bucket name restrictions
+
+  * api: datastore status: delay lookup after permission check to improve
+    consistency of tracked read operations
+
+  * tape: improve throughput by not unnecessarily syncing/committing after
+    every archive written beyond the first 128 GiB
+
+  * tape: save 'bytes used' in the tape inventory and show them on the web UI
+    to allow users to more easily see the usage of a tape
+
+  * tape drive status: return drive activity (like cleaning, loading,
+    unloading, writing, ...) in the API and show them in the UI
+
+  * ui: tape drive status: avoid checking some specific status if the current
+    drive activity would block doing so anyway
+
+  * tape: write out basic MAM host-type attributes to media to make them more
+    easily identifiable as Proxmox Backup Server tape by common LTO tooling.
+
+  * api: syslog: fix the documented type of the return value
+
+  * fix #5465: restore daemon: mount NTFS with UTF-8 charset
+
+  * restore daemon: log some more errors on directory traversal
+
+  * fix #5422: ui: garbage-collection: make columns in global view sortable
+
+  * auth: move to hmac keys for csrf tokens as future-proofing
+
+  * auth: upgrade hashes on user log in if a users password is not hashed with
+    the latest password hashing function for hardening purpose
+
+  * auth: use ed25519 keys when generating new auth api keys
+
+  * notifications: fix legacy sync notifications
+
+  * docs: document notification-mode and merge old notification section
+
+  * docs: notifications: rewrite overview for more clarity
+
+  * ui: datastore options: link to 'notification-mode' section
+
+  * acme: explicitly print a query when prompting for the custom directory URI
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 22 May 2024 19:31:35 +0200
+
 rust-proxmox-backup (3.2.2-1) bookworm; urgency=medium
 
   * ui: notifications fix empty text format for the default mail author
