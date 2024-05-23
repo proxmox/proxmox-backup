@@ -9,6 +9,7 @@ use std::pin::Pin;
 use anyhow::{bail, Error};
 use futures::Future;
 use once_cell::sync::{Lazy, OnceCell};
+use pbs_config::open_backup_lockfile;
 use proxmox_router::http_bail;
 use serde_json::json;
 
@@ -31,6 +32,7 @@ pub const TERM_PREFIX: &str = "PBSTERM";
 struct PbsAuthenticator;
 
 pub(crate) const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
+pub(crate) const SHADOW_LOCK_FILENAME: &str = configdir!("/shadow.json.lock");
 
 impl Authenticator for PbsAuthenticator {
     fn authenticate_user<'a>(
@@ -68,6 +70,8 @@ impl Authenticator for PbsAuthenticator {
         _client_ip: Option<&IpAddr>,
     ) -> Result<(), Error> {
         let enc_password = proxmox_sys::crypt::encrypt_pw(password)?;
+
+        let _guard = open_backup_lockfile(SHADOW_LOCK_FILENAME, None, true);
         let mut data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         data[username.as_str()] = enc_password.into();
 
@@ -84,6 +88,8 @@ impl Authenticator for PbsAuthenticator {
     }
 
     fn remove_password(&self, username: &UsernameRef) -> Result<(), Error> {
+        let _guard = open_backup_lockfile(SHADOW_LOCK_FILENAME, None, true);
+
         let mut data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         if let Some(map) = data.as_object_mut() {
             map.remove(username.as_str());
