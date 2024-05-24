@@ -30,7 +30,7 @@ fn test_current_set_usable_1() -> Result<(), Error> {
 
     let pool = MediaPool::new(
         "p1",
-        &testdir,
+        testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
         None,

@@ -28,7 +28,7 @@ fn test_alloc_writable_media_1() -> Result<(), Error> {
 
     let mut pool = MediaPool::new(
         "p1",
-        &testdir,
+        testdir,
         MediaSetPolicy::ContinueCurrent,
         RetentionPolicy::KeepForever,
         None,

@@ -1252,7 +1252,7 @@ pub fn garbage_collection_status(
     if let Some(ref upid) = status_in_memory.upid {
         let mut computed_schedule: JobScheduleStatus = JobScheduleStatus::default();
         if let Some(state) = state_file {
-            if let Ok(cs) = compute_schedule_status(&state, Some(&upid)) {
+            if let Ok(cs) = compute_schedule_status(&state, Some(upid)) {
                 computed_schedule = cs;
             }
         }

@@ -26,7 +26,7 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
 fn test_media_state_db() -> Result<(), Error> {
     let testdir = create_testdir("test_media_state_db")?;
 
-    let mut inventory = Inventory::load(&testdir)?;
+    let mut inventory = Inventory::load(testdir)?;
 
     let uuid1: Uuid = inventory.generate_free_tape("tape1", 0);
 
@@ -75,7 +75,7 @@ fn test_media_state_db() -> Result<(), Error> {
 #[test]
 fn test_list_pool_media() -> Result<(), Error> {
     let testdir = create_testdir("test_list_pool_media")?;
-    let mut inventory = Inventory::load(&testdir)?;
+    let mut inventory = Inventory::load(testdir)?;
 
     let ctime = 0;
 
@@ -198,7 +198,7 @@ fn test_latest_media_set() -> Result<(), Error> {
         assert_eq!(media.label.label_text, label);
     };
 
-    let mut inventory = Inventory::load(&testdir)?;
+    let mut inventory = Inventory::load(testdir)?;
 
     let ctime = 0;
 

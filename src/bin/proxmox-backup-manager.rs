@@ -111,7 +111,7 @@ async fn garbage_collection_list_jobs(param: Value) -> Result<Value, Error> {
 
     let path = "api2/json/admin/gc";
 
-    let mut result = client.get(&path, None).await?;
+    let mut result = client.get(path, None).await?;
     let mut data = result["data"].take();
     let return_type = &api2::admin::gc::API_METHOD_LIST_ALL_GC_JOBS.returns;
 
