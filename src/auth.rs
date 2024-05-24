@@ -55,7 +55,6 @@ impl Authenticator for PbsAuthenticator {
                             log::warn!("could not upgrade a users password! - {e}");
                         }
                     }
-
                 }
             }
             Ok(())
