@@ -11,8 +11,8 @@ use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
 use proxmox_acme::account::AccountCreator;
-use proxmox_acme::account::AccountData as AcmeAccountData;
 use proxmox_acme::order::{Order, OrderData};
+use proxmox_acme::types::AccountData as AcmeAccountData;
 use proxmox_acme::Request as AcmeRequest;
 use proxmox_acme::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
 use proxmox_http::client::Client;
