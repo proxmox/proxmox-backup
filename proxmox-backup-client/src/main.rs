@@ -785,7 +785,8 @@ async fn create_backup(
                 upload_list.push((
                     BackupSpecificationType::PXAR,
                     filename.to_owned(),
-                    format!("{}.didx", target),
+                    target.to_owned(),
+                    "didx",
                     0,
                 ));
             }
@@ -803,7 +804,8 @@ async fn create_backup(
                 upload_list.push((
                     BackupSpecificationType::IMAGE,
                     filename.to_owned(),
-                    format!("{}.fidx", target),
+                    target.to_owned(),
+                    "fidx",
                     size,
                 ));
             }
@@ -814,7 +816,8 @@ async fn create_backup(
                 upload_list.push((
                     BackupSpecificationType::CONFIG,
                     filename.to_owned(),
-                    format!("{}.blob", target),
+                    target.to_owned(),
+                    "blob",
                     metadata.len(),
                 ));
             }
@@ -825,7 +828,8 @@ async fn create_backup(
                 upload_list.push((
                     BackupSpecificationType::LOGFILE,
                     filename.to_owned(),
-                    format!("{}.blob", target),
+                    target.to_owned(),
+                    "blob",
                     metadata.len(),
                 ));
             }
@@ -944,7 +948,8 @@ async fn create_backup(
         log::info!("{} {} '{}' to '{}' as {}", what, desc, file, repo, target);
     };
 
-    for (backup_type, filename, target, size) in upload_list {
+    for (backup_type, filename, target_base, extension, size) in upload_list {
+        let target = format!("{target_base}.{extension}");
         match (backup_type, dry_run) {
             // dry-run
             (BackupSpecificationType::CONFIG, true) => log_file("config file", &filename, &target),
