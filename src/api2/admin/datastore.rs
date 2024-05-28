@@ -1743,6 +1743,29 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
     &Permission::Anybody,
 );
 
+fn get_local_pxar_reader(
+    datastore: Arc<DataStore>,
+    manifest: &BackupManifest,
+    backup_dir: &BackupDir,
+    pxar_name: &str,
+) -> Result<(LocalDynamicReadAt<LocalChunkReader>, u64), Error> {
+    let mut path = datastore.base_path();
+    path.push(backup_dir.relative_path());
+    path.push(pxar_name);
+
+    let index = DynamicIndexReader::open(&path)
+        .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+    let (csum, size) = index.compute_csum();
+    manifest.verify_file(pxar_name, &csum, size)?;
+
+    let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
+    let reader = BufferedDynamicReader::new(index, chunk_reader);
+    let archive_size = reader.archive_size();
+
+    Ok((LocalDynamicReadAt::new(reader), archive_size))
+}
+
 pub fn pxar_file_download(
     _parts: Parts,
     _req_body: Body,
@@ -1787,20 +1810,8 @@ pub fn pxar_file_download(
             }
         }
 
-        let mut path = datastore.base_path();
-        path.push(backup_dir.relative_path());
-        path.push(pxar_name);
-
-        let index = DynamicIndexReader::open(&path)
-            .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
-
-        let (csum, size) = index.compute_csum();
-        manifest.verify_file(pxar_name, &csum, size)?;
-
-        let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
-        let reader = BufferedDynamicReader::new(index, chunk_reader);
-        let archive_size = reader.archive_size();
-        let reader = LocalDynamicReadAt::new(reader);
+        let (reader, archive_size) =
+            get_local_pxar_reader(datastore.clone(), &manifest, &backup_dir, pxar_name)?;
 
         let decoder = Accessor::new(reader, archive_size).await?;
         let root = decoder.open_root().await?;
