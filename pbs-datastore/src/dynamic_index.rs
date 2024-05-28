@@ -72,6 +72,11 @@ impl DynamicEntry {
     pub fn end(&self) -> u64 {
         u64::from_le(self.end_le)
     }
+
+    #[inline]
+    pub fn digest(&self) -> [u8; 32] {
+        self.digest
+    }
 }
 
 pub struct DynamicIndexReader {
