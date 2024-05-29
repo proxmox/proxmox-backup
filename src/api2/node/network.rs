@@ -149,7 +149,7 @@ pub fn list_network_devices(
     },
     returns: { type: Interface },
     access: {
-        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{iface}"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read a network interface configuration.
