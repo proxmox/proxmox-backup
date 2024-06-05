@@ -1,3 +1,13 @@
+rust-proxmox-backup (3.2.4-1) bookworm; urgency=medium
+
+  * fix: network api: permission using wrong pathname
+
+  * fix #5503: d/control: bump dependency for proxmox-widget-toolkit
+
+  * auth: add locking to `PbsAuthenticator` to avoid race conditions
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 05 Jun 2024 16:23:38 +0200
+
 rust-proxmox-backup (3.2.3-1) bookworm; urgency=medium
 
   * api-types: remove influxdb bucket name restrictions
